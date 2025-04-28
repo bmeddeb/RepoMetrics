@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Clone Monitor</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        .summary {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .summary-item {
+            padding: 10px;
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+        }
+        .summary-value {
+            font-size: 2em;
+            font-weight: bold;
+            display: block;
+            margin: 5px 0;
+        }
+        .summary-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .repo-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .repo-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            transition: transform 0.2s ease;
+        }
+        .repo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .repo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .repo-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 0;
+            word-break: break-all;
+        }
+        .repo-status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .status-pending {
+            background-color: #f8f9fa;
+            color: #6c757d;
+        }
+        .status-cloning {
+            background-color: #e3f2fd;
+            color: #0d6efd;
+        }
+        .status-completed {
+            background-color: #d1e7dd;
+            color: #198754;
+        }
+        .status-failed {
+            background-color: #f8d7da;
+            color: #dc3545;
+        }
+        .progress-container {
+            margin: 15px 0;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #0d6efd;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .repo-details {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .repo-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #f1f1f1;
+        }
+        .repo-detail:last-child {
+            border-bottom: none;
+        }
+        @media (max-width: 768px) {
+            .repo-list {
+                grid-template-columns: 1fr;
+            }
+            .summary-item {
+                min-width: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Repository Clone Monitor</h1>
+
+    <div class="summary" id="summary">
+        <div class="summary-item">
+            <span class="summary-value" id="total-repos">0</span>
+            <span class="summary-label">Total Repositories</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-value" id="completed-repos">0</span>
+            <span class="summary-label">Completed</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-value" id="cloning-repos">0</span>
+            <span class="summary-label">In Progress</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-value" id="pending-repos">0</span>
+            <span class="summary-label">Pending</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-value" id="failed-repos">0</span>
+            <span class="summary-label">Failed</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-value" id="elapsed-time">0:00</span>
+            <span class="summary-label">Elapsed Time</span>
+        </div>
+    </div>
+
+    <div class="repo-list" id="repo-list">
+        <!-- Repository cards will be dynamically added here -->
+    </div>
+
+    <script>
+        // Helper functions
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function getStatusClass(status) {
+            switch(status.toLowerCase()) {
+                case 'pending': return 'status-pending';
+                case 'cloning': return 'status-cloning';
+                case 'completed': return 'status-completed';
+                case 'failed': return 'status-failed';
+                default: return 'status-pending';
+            }
+        }
+
+        function calculateProgress(repo) {
+            if (repo.status === 'completed') return 100;
+            if (repo.status === 'failed') return 100;
+            if (repo.status === 'pending') return 0;
+
+            // For cloning repositories
+            if (repo.total_objects && repo.received_objects) {
+                return Math.floor((repo.received_objects / repo.total_objects) * 100);
+            }
+            return 0;
+        }
+
+        function createRepoCard(repo) {
+            const progress = calculateProgress(repo);
+
+            return `
+                <div class="repo-card" id="repo-${repo.id}">
+                    <div class="repo-header">
+                        <h2 class="repo-name">${repo.url}</h2>
+                        <span class="repo-status ${getStatusClass(repo.status)}">${repo.status}</span>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${progress}%;"></div>
+                    </div>
+
+                    <div class="repo-details">
+                        ${repo.message ? `
+                            <div class="repo-detail">
+                                <span>Message:</span>
+                                <span>${repo.message}</span>
+                            </div>
+                        ` : ''}
+
+                        ${repo.received_objects ? `
+                            <div class="repo-detail">
+                                <span>Objects:</span>
+                                <span>${repo.received_objects}/${repo.total_objects || '?'}</span>
+                            </div>
+                        ` : ''}
+
+                        ${repo.elapsed_time ? `
+                            <div class="repo-detail">
+                                <span>Time:</span>
+                                <span>${formatTime(repo.elapsed_time)}</span>
+                            </div>
+                        ` : ''}
+
+                        ${repo.target_dir ? `
+                            <div class="repo-detail">
+                                <span>Target:</span>
+                                <span>${repo.target_dir}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateSummary(data) {
+            document.getElementById('total-repos').textContent = data.summary.total || 0;
+            document.getElementById('completed-repos').textContent = data.summary.completed || 0;
+            document.getElementById('cloning-repos').textContent = data.summary.cloning || 0;
+            document.getElementById('pending-repos').textContent = data.summary.pending || 0;
+            document.getElementById('failed-repos').textContent = data.summary.failed || 0;
+            document.getElementById('elapsed-time').textContent = formatTime(data.elapsed_seconds || 0);
+        }
+
+        function updateRepoList(data) {
+            const repoListElement = document.getElementById('repo-list');
+
+            // Clear existing content if this is a full refresh
+            if (data.repositories && Object.keys(data.repositories).length > 0) {
+                repoListElement.innerHTML = '';
+
+                // Add all repositories
+                for (const [id, repo] of Object.entries(data.repositories)) {
+                    repo.id = id; // Add the id to the repo object
+                    repoListElement.innerHTML += createRepoCard(repo);
+                }
+            }
+        }
+
+        function updateRepoCard(repo) {
+            const cardElement = document.getElementById(`repo-${repo.id}`);
+            if (cardElement) {
+                cardElement.outerHTML = createRepoCard(repo);
+            } else {
+                document.getElementById('repo-list').innerHTML += createRepoCard(repo);
+            }
+        }
+
+        // Fetch initial status
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                updateSummary(data);
+                updateRepoList(data);
+            })
+            .catch(error => console.error('Error fetching status:', error));
+
+        // Setup SSE for real-time updates
+        const evtSource = new EventSource('/api/events');
+
+        evtSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'status_update') {
+                updateSummary(data.data);
+            } else if (data.type === 'repo_update') {
+                updateRepoCard(data.data);
+            }
+        };
+
+        evtSource.onerror = function() {
+            console.error('EventSource failed, reconnecting...');
+            setTimeout(() => {
+                // Fetch the latest status upon reconnection
+                fetch('/api/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        updateSummary(data);
+                        updateRepoList(data);
+                    })
+                    .catch(error => console.error('Error fetching status:', error));
+            }, 2000);
+        };
+    </script>
+</body>
+</html>

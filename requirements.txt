@@ -1,0 +1,11 @@
+# Core dependencies
+asyncio>=3.4.3
+
+# Development dependencies
+maturin>=0.13,<0.14
+pytest>=6.0.0
+black>=22.1.0
+isort>=5.10.1
+
+# Example dependencies
+argparse>=1.4.0

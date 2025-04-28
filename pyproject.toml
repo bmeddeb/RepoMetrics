@@ -1,0 +1,41 @@
+[build-system]
+requires = ["maturin>=0.13,<2"]
+build-backend = "maturin"
+
+[project]
+name = "RepoMetrics"
+version = "0.1.0"
+description = "High-performance Git blame operations and repository management"
+authors = [
+    {name = "Ben", email = "ben@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+    "argparse>=1.4.0",
+    "asyncio>=3.4.3", # For asynchronous operations
+    "black>=22.1.0",
+    "isort>=5.10.1",
+    "maturin>=0.13,<0.14",
+    "pytest>=6.0.0",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Rust",
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/username/RepoMetrics"
+"Bug Tracker" = "https://github.com/username/RepoMetrics/issues"
+
+[tool.maturin]
+python-source = "."
+features = ["pyo3/extension-module"]
