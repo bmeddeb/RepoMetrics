@@ -182,7 +182,9 @@ async def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description='Clone and monitor Git repositories')
-    parser.add_argument('--repos', '-r', nargs='+', default=["https://github.com/bmeddeb/gradelib"],
+    parser.add_argument('--repos', '-r', nargs='+', default=["https://github.com/bmeddeb/gradelib",
+                                                             "https://github.com/bmeddeb/SER402-Team3",
+                                                             "https://github.com/bmeddeb/repometrics"],
                         help='List of repository URLs to clone')
     parser.add_argument('--username', '-u', default=os.environ.get("GITHUB_USERNAME", ""),
                         help='GitHub username (or set GITHUB_USERNAME env var)')

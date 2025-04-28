@@ -7,10 +7,10 @@ name = "RepoMetrics"
 version = "0.1.0"
 description = "High-performance Git blame operations and repository management"
 authors = [
-    {name = "Ben", email = "ben@example.com"}
+    {name = "Ben", email = "bmeddeb@asu.edu"}
 ]
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 dependencies = [
     "argparse>=1.4.0",
     "asyncio>=3.4.3", # For asynchronous operations
@@ -21,10 +21,10 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Rust",
     "License :: OSI Approved :: MIT License",
     "Development Status :: 3 - Alpha",
@@ -33,9 +33,11 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/username/RepoMetrics"
-"Bug Tracker" = "https://github.com/username/RepoMetrics/issues"
+"Homepage" = "https://github.com/bmeddeb/RepoMetrics"
+"Bug Tracker" = "https://github.com/bmeddeb/RepoMetrics/issues"
 
 [tool.maturin]
-python-source = "."
+python-source = "RepoMetrics"
+module-name = "RepoMetrics"
+manifest-path = "./Cargo.toml"
 features = ["pyo3/extension-module"]

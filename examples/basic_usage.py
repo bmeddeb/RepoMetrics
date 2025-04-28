@@ -12,6 +12,7 @@ This example demonstrates how to use the RepoMetrics library to:
 
 import os
 import asyncio
+
 from RepoMetrics import RepoManager
 
 # GitHub credentials - replace with your own or use environment variables
@@ -175,7 +176,7 @@ async def main():
 
     # Analyze commit history
     print("\nAnalyzing commit history...")
-    commits = await repo_manager.analyze_commits(repo_path)
+    commits = await repo_manager.extract_commits(repo_path)
 
     if isinstance(commits, list):  # Success case
         print(f"Found {len(commits)} commits")

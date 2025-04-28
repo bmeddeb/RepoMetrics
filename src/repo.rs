@@ -240,4 +240,33 @@ impl InternalRepoManagerLogic {
     pub fn extract_commits(&self, repo_path: &PathBuf) -> Result<Vec<CommitInfo>, String> {
         extract_commits_parallel(repo_path.clone(), String::new())
     }
+
+    /// Cleans up temporary directories created for cloned repositories.
+    /// Returns a map of repository URLs and whether cleanup was successful.
+    pub fn cleanup_temp_dirs(&self) -> HashMap<String, Result<(), String>> {
+        let mut results = HashMap::new();
+        let tasks_guard = self.tasks.lock().unwrap();
+        
+        for (url, task) in tasks_guard.iter() {
+            if let Some(temp_dir) = &task.temp_dir {
+                // Only attempt to remove if the path exists
+                if temp_dir.exists() {
+                    match std::fs::remove_dir_all(temp_dir) {
+                        Ok(_) => {
+                            results.insert(url.clone(), Ok(()));
+                        },
+                        Err(e) => {
+                            results.insert(url.clone(), Err(format!("Failed to remove directory: {}", e)));
+                        }
+                    }
+                } else {
+                    results.insert(url.clone(), Err("Directory no longer exists".to_string()));
+                }
+            } else {
+                results.insert(url.clone(), Err("No temporary directory to clean up".to_string()));
+            }
+        }
+        
+        results
+    }
 }

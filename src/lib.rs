@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, non_snake_case)]
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
@@ -234,11 +234,34 @@ impl RepoManager {
             })
         })
     }
+
+    /// Cleans up all temporary directories created for cloned repositories.
+    /// Returns a dictionary with repository URLs as keys and cleanup results as values.
+    #[pyo3(name = "cleanup")]
+    fn cleanup<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let inner = Arc::clone(&self.inner);
+        let results = inner.cleanup_temp_dirs();
+        let py_dict = PyDict::new(py);
+
+        for (url, result) in results {
+            match result {
+                Ok(_) => {
+                    py_dict.set_item(url, true)?;
+                }
+                Err(error_msg) => {
+                    py_dict.set_item(url, error_msg)?;
+                }
+            }
+        }
+
+        Ok(py_dict.into())
+    }
 }
 
 // --- Python module definition ---
+#[allow(non_snake_case)]
 #[pymodule]
-fn repo_metrics(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+fn RepoMetrics(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<RepoManager>()?;
     m.add_class::<ExposedCloneStatus>()?;
     m.add_class::<ExposedCloneTask>()?;

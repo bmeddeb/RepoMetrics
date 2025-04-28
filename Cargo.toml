@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/bmeddeb/RepoMetrics"
 
 [lib]
-name = "repo_metrics"
+name = "RepoMetrics"
 crate-type = ["cdylib"]
 
 [dependencies]
