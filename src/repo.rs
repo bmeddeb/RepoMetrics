@@ -246,7 +246,7 @@ impl InternalRepoManagerLogic {
     pub fn cleanup_temp_dirs(&self) -> HashMap<String, Result<(), String>> {
         let mut results = HashMap::new();
         let tasks_guard = self.tasks.lock().unwrap();
-        
+
         for (url, task) in tasks_guard.iter() {
             if let Some(temp_dir) = &task.temp_dir {
                 // Only attempt to remove if the path exists
@@ -254,19 +254,25 @@ impl InternalRepoManagerLogic {
                     match std::fs::remove_dir_all(temp_dir) {
                         Ok(_) => {
                             results.insert(url.clone(), Ok(()));
-                        },
+                        }
                         Err(e) => {
-                            results.insert(url.clone(), Err(format!("Failed to remove directory: {}", e)));
+                            results.insert(
+                                url.clone(),
+                                Err(format!("Failed to remove directory: {}", e)),
+                            );
                         }
                     }
                 } else {
                     results.insert(url.clone(), Err("Directory no longer exists".to_string()));
                 }
             } else {
-                results.insert(url.clone(), Err("No temporary directory to clean up".to_string()));
+                results.insert(
+                    url.clone(),
+                    Err("No temporary directory to clean up".to_string()),
+                );
             }
         }
-        
+
         results
     }
 }

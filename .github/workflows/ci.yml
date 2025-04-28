@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Set up environment
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install maturin pytest
+
+      - name: Build Rust extension with maturin
+        run: |
+          source .venv/bin/activate
+          maturin develop
+
+      - name: Run tests
+        run: |
+          source .venv/bin/activate
+          cd python
+          pytest --ignore=tests/test_taiga.py

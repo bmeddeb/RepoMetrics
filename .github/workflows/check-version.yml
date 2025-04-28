@@ -1,0 +1,118 @@
+name: Check Version and Release
+
+
+on:
+   push:
+     branches: [main]
+     paths:
+       - 'Cargo.toml'
+       - 'pyproject.toml'
+   workflow_dispatch:
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release_needed: ${{ steps.check.outputs.release_needed }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install toml
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+          echo "Found version $VERSION in pyproject.toml"
+          
+          # Also check Cargo.toml version and ensure they match
+          CARGO_VERSION=$(grep -E '^version = ' Cargo.toml | sed -E 's/version = "([^"]+)"/\1/')
+          echo "Cargo.toml version: $CARGO_VERSION"
+          
+          # Verify versions match
+          if [ "$VERSION" != "$CARGO_VERSION" ]; then
+            echo "ERROR: Version mismatch! pyproject.toml: $VERSION, Cargo.toml: $CARGO_VERSION"
+            exit 1
+          else
+            echo "✅ Versions match in both files"
+          fi
+
+      - name: Check if tag exists
+        id: check
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          TAG="v$VERSION"
+          echo "Checking if tag $TAG exists..."
+          
+          # List all tags for debugging
+          echo "All tags:"
+          git tag -l
+          
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, no release needed"
+            echo "release_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist, release needed"
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+          fi
+
+  create-release:
+    needs: check-version
+    if: needs.check-version.outputs.release_needed == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create tag and GitHub release
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          TAG="v$VERSION"
+          echo "Creating tag $TAG..."
+          
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
+          
+          # Create the tag
+          git tag -a "$TAG" -m "Release v$VERSION"
+          
+          # Push tag with verbose output
+          echo "Pushing tag $TAG to repository..."
+          git push -v https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} "$TAG"
+          
+          # Verify tag was pushed
+          echo "Verifying tag was pushed..."
+          git ls-remote --tags origin | grep "$TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: Release v${{ needs.check-version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
