@@ -17,9 +17,31 @@ jobs:
       release_needed: ${{ steps.check.outputs.release_needed }}
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      - name: Checkout repository
+        run: |
+          # Actions run in the workspace (repo) directory by default
+          echo "Current directory: $PWD"
+          
+          # In a self-hosted runner, we need to manually pull the code
+          REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
+          
+          # If we're not in the repo directory already, get the code
+          if [ ! -d ".git" ]; then
+            echo "Initializing git repository"
+            git init
+            git remote add origin $REPO_URL
+          fi
+          
+          # Fetch the code with full history (equivalent to fetch-depth: 0)
+          git fetch --unshallow origin || git fetch origin
+          
+          # Checkout the specific ref that triggered the workflow
+          git checkout -f "$GITHUB_SHA"
+          
+          # Get all tags
+          git fetch --tags
+          
+          echo "Repository checked out at $(git rev-parse HEAD) with full history"
 
       - name: Setup Python
         run: |
@@ -89,7 +111,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        run: |
+          # Actions run in the workspace (repo) directory by default
+          echo "Current directory: $PWD"
+          
+          # In a self-hosted runner, we need to manually pull the code
+          REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
+          
+          # If we're not in the repo directory already, get the code
+          if [ ! -d ".git" ]; then
+            echo "Initializing git repository"
+            git init
+            git remote add origin $REPO_URL
+          fi
+          
+          # Fetch the code
+          git fetch origin "$GITHUB_REF"
+          
+          # Checkout the specific ref that triggered the workflow
+          git checkout -f "$GITHUB_SHA"
+          
+          echo "Repository checked out at $(git rev-parse HEAD)"
 
       - name: Create tag and GitHub release
         run: |
