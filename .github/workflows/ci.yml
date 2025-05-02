@@ -10,16 +10,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: ./.github/actions/checkout
 
-      - uses: actions/setup-python@v4
+      - uses: ./.github/actions/setup-python
         with:
           python-version: "3.12"
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-toolchain
 
       - name: Cache pip
-        uses: actions/cache@v4
+        uses: ./.github/actions/cache
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
@@ -31,6 +31,7 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           pip install maturin pytest
+          pip install -e ".[dev]"
 
       - name: Build Rust extension with maturin
         run: |
