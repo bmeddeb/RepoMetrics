@@ -152,7 +152,7 @@ impl InternalRepoManagerLogic {
                     Err(e) => Err(e.to_string()),
                 }
             })
-            .await;
+                .await;
         let ret = match result {
             Ok(Ok(path)) => {
                 self.update_status(&url_clone, InternalCloneStatus::Cloning(100))
@@ -170,7 +170,7 @@ impl InternalRepoManagerLogic {
                     &url_clone,
                     InternalCloneStatus::Failed(format!("Cloning task failed: {}", join_err)),
                 )
-                .await;
+                    .await;
                 Err(format!("Cloning task failed: {}", join_err))
             }
         };
@@ -243,7 +243,7 @@ impl InternalRepoManagerLogic {
 
     /// Cleans up temporary directories created for cloned repositories.
     /// Returns a map of repository URLs and whether cleanup was successful.
-    pub fn cleanup_temp_dirs(&self) -> HashMap<String, Result<(), String>> {
+    pub fn cleanup_temp(&self) -> HashMap<String, Result<(), String>> {
         let mut results = HashMap::new();
         let tasks_guard = self.tasks.lock().unwrap();
 
