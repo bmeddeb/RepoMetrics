@@ -11,10 +11,11 @@ The example shows how to implement a progress bar and real-time monitoring
 of clone operations, with rich formatting.
 """
 
-import os
-import asyncio
 import argparse
+import asyncio
+import os
 from datetime import datetime
+
 from GitFleet import RepoManager
 
 # ANSI color codes for terminal output
@@ -37,7 +38,7 @@ COLORS = {
 
 def colorize(text, color):
     """Add color to terminal text if supported"""
-    if os.name == 'nt':  # Windows terminals might not support ANSI
+    if os.name == "nt":  # Windows terminals might not support ANSI
         return text
     return f"{COLORS.get(color, '')}{text}{COLORS['reset']}"
 
@@ -58,17 +59,16 @@ async def monitor_clones(repo_manager, clone_future, refresh_rate=1):
         queued_clones = 0
 
         # Clear terminal
-        if os.name != 'nt':
-            os.system('clear')
+        if os.name != "nt":
+            os.system("clear")
         else:
-            os.system('cls')
+            os.system("cls")
 
         # Print header
         elapsed = datetime.now() - start_time
         elapsed_str = f"{elapsed.seconds // 60}m {elapsed.seconds % 60}s"
 
-        print(
-            colorize(f"\n⏱️  CLONE MONITOR - Running for {elapsed_str}", "bold"))
+        print(colorize(f"\n⏱️  CLONE MONITOR - Running for {elapsed_str}", "bold"))
         print(colorize("=" * 60, "bold"))
 
         # For each repository, show its status
@@ -87,21 +87,21 @@ async def monitor_clones(repo_manager, clone_future, refresh_rate=1):
                 queued_clones += 1
 
             # Get repo name from URL
-            repo_name = url.split('/')[-1]
+            repo_name = url.split("/")[-1]
 
             # Status formatting
             status_color = {
                 "queued": "yellow",
                 "cloning": "blue",
                 "completed": "green",
-                "failed": "red"
+                "failed": "red",
             }.get(status, "white")
 
             status_text = {
                 "queued": "⌛ QUEUED",
                 "cloning": "🔄 CLONING",
                 "completed": "✅ COMPLETED",
-                "failed": "❌ FAILED"
+                "failed": "❌ FAILED",
             }.get(status, status.upper())
 
             # Get previous progress for comparison
@@ -111,7 +111,8 @@ async def monitor_clones(repo_manager, clone_future, refresh_rate=1):
 
             # Print repository header
             print(
-                f"\n{i}. {colorize(repo_name, 'bold')} [{colorize(status_text, status_color)}]")
+                f"\n{i}. {colorize(repo_name, 'bold')} [{colorize(status_text, status_color)}]"
+            )
             print(f"   URL: {url}")
 
             # Show progress bar for active clones
@@ -120,18 +121,19 @@ async def monitor_clones(repo_manager, clone_future, refresh_rate=1):
                 filled_length = int(bar_length * progress / 100)
 
                 # Format progress bar
-                bar_content = colorize(
-                    '█' * filled_length, "bg_green") + '░' * (bar_length - filled_length)
+                bar_content = colorize("█" * filled_length, "bg_green") + "░" * (
+                    bar_length - filled_length
+                )
 
                 # Show progress change indicators
                 progress_change = ""
                 if progress > prev_progress:
                     progress_change = colorize(
-                        f" ↑{progress - prev_progress}%", "green")
+                        f" ↑{progress - prev_progress}%", "green"
+                    )
 
                 # Print progress information
-                print(
-                    f"   Progress: [{bar_content}] {progress}%{progress_change}")
+                print(f"   Progress: [{bar_content}] {progress}%{progress_change}")
 
                 # Estimated time (very rough)
                 if progress > 0:
@@ -142,7 +144,8 @@ async def monitor_clones(repo_manager, clone_future, refresh_rate=1):
                         remaining_min = int(remaining // 60)
                         remaining_sec = int(remaining % 60)
                         print(
-                            f"   Estimated time remaining: ~{remaining_min}m {remaining_sec}s")
+                            f"   Estimated time remaining: ~{remaining_min}m {remaining_sec}s"
+                        )
 
             # Show error details for failed clones
             if status == "failed" and task.status.error:
@@ -153,10 +156,7 @@ async def monitor_clones(repo_manager, clone_future, refresh_rate=1):
                 print(f"   Directory: {task.temp_dir}")
 
             # Store current status for the next iteration
-            previous_status[url] = {
-                "status": status,
-                "progress": progress
-            }
+            previous_status[url] = {"status": status, "progress": progress}
 
         # Print summary
         print(colorize("\n" + "=" * 60, "bold"))
@@ -180,18 +180,37 @@ async def monitor_clones(repo_manager, clone_future, refresh_rate=1):
 
 async def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(
-        description='Clone and monitor Git repositories')
-    parser.add_argument('--repos', '-r', nargs='+', default=["https://github.com/bmeddeb/gradelib",
-                                                             "https://github.com/bmeddeb/SER402-Team3",
-                                                             "https://github.com/bmeddeb/GitFleet"],
-                        help='List of repository URLs to clone')
-    parser.add_argument('--username', '-u', default=os.environ.get("GITHUB_USERNAME", ""),
-                        help='GitHub username (or set GITHUB_USERNAME env var)')
-    parser.add_argument('--token', '-t', default=os.environ.get("GITHUB_TOKEN", ""),
-                        help='GitHub token (or set GITHUB_TOKEN env var)')
-    parser.add_argument('--refresh', '-f', type=float, default=1.0,
-                        help='Refresh rate in seconds for the monitoring display')
+    parser = argparse.ArgumentParser(description="Clone and monitor Git repositories")
+    parser.add_argument(
+        "--repos",
+        "-r",
+        nargs="+",
+        default=[
+            "https://github.com/bmeddeb/gradelib",
+            "https://github.com/bmeddeb/SER402-Team3",
+            "https://github.com/bmeddeb/GitFleet",
+        ],
+        help="List of repository URLs to clone",
+    )
+    parser.add_argument(
+        "--username",
+        "-u",
+        default=os.environ.get("GITHUB_USERNAME", ""),
+        help="GitHub username (or set GITHUB_USERNAME env var)",
+    )
+    parser.add_argument(
+        "--token",
+        "-t",
+        default=os.environ.get("GITHUB_TOKEN", ""),
+        help="GitHub token (or set GITHUB_TOKEN env var)",
+    )
+    parser.add_argument(
+        "--refresh",
+        "-f",
+        type=float,
+        default=1.0,
+        help="Refresh rate in seconds for the monitoring display",
+    )
 
     args = parser.parse_args()
 
@@ -199,20 +218,23 @@ async def main():
     print(colorize("Initializing repository manager...", "bold"))
 
     if not args.username or not args.token:
-        print(colorize(
-            "Warning: GitHub credentials not provided. Anonymous access will be used.", "yellow"))
-        print("For better rate limits, provide credentials with --username and --token options")
+        print(
+            colorize(
+                "Warning: GitHub credentials not provided. Anonymous access will be used.",
+                "yellow",
+            )
+        )
+        print(
+            "For better rate limits, provide credentials with --username and --token options"
+        )
         print("or set GITHUB_USERNAME and GITHUB_TOKEN environment variables.\n")
 
     repo_manager = RepoManager(
-        urls=args.repos,
-        github_username=args.username,
-        github_token=args.token
+        urls=args.repos, github_username=args.username, github_token=args.token
     )
 
     # Start cloning repositories
-    print(
-        colorize(f"Starting clone of {len(args.repos)} repositories...", "bold"))
+    print(colorize(f"Starting clone of {len(args.repos)} repositories...", "bold"))
     # PyO3 already returns futures, not coroutines
     clone_future = repo_manager.clone_all()
 
@@ -227,12 +249,15 @@ async def main():
         print(colorize("\nFinal Status:", "bold"))
         for url, task in final_status.items():
             status_color = "green" if task.status.status_type == "completed" else "red"
-            print(
-                f"• {url}: {colorize(task.status.status_type.upper(), status_color)}")
+            print(f"• {url}: {colorize(task.status.status_type.upper(), status_color)}")
 
     except KeyboardInterrupt:
-        print(colorize(
-            "\nMonitoring interrupted. Clone operations may continue in the background.", "yellow"))
+        print(
+            colorize(
+                "\nMonitoring interrupted. Clone operations may continue in the background.",
+                "yellow",
+            )
+        )
         print("You can run this script again to resume monitoring.")
 
 

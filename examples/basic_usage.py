@@ -10,8 +10,8 @@ This example demonstrates how to use the GitFleet library to:
 5. Analyze commit history
 """
 
-import os
 import asyncio
+import os
 
 from GitFleet import RepoManager
 
@@ -30,9 +30,7 @@ async def main():
     # Initialize the repository manager
     print("Initializing repository manager...")
     repo_manager = RepoManager(
-        urls=REPO_URLS,
-        github_username=GITHUB_USERNAME,
-        github_token=GITHUB_TOKEN
+        urls=REPO_URLS, github_username=GITHUB_USERNAME, github_token=GITHUB_TOKEN
     )
 
     # Start cloning repositories asynchronously
@@ -52,10 +50,10 @@ async def main():
             all_done = True
 
             # Clear terminal if supported (not on Windows)
-            if os.name != 'nt':
-                os.system('clear')
+            if os.name != "nt":
+                os.system("clear")
             else:
-                os.system('cls')
+                os.system("cls")
 
             print("\n===== REPOSITORY CLONE STATUS =====\n")
 
@@ -68,7 +66,7 @@ async def main():
                     "queued": "⌛ QUEUED",
                     "cloning": "🔄 CLONING",
                     "completed": "✅ COMPLETED",
-                    "failed": "❌ FAILED"
+                    "failed": "❌ FAILED",
                 }.get(status, status.upper())
 
                 # Print repository info
@@ -79,18 +77,19 @@ async def main():
                 if status == "cloning" and progress is not None:
                     bar_length = 30
                     filled_length = int(bar_length * progress / 100)
-                    bar = '█' * filled_length + '░' * \
-                        (bar_length - filled_length)
+                    bar = "█" * filled_length + "░" * (bar_length - filled_length)
                     print(f"Progress: [{bar}] {progress}%")
 
                     # Print a message when progress changes significantly
                     prev_progress = 0
-                    if url in previous_status and previous_status[url]["status"] == "cloning":
+                    if (
+                        url in previous_status
+                        and previous_status[url]["status"] == "cloning"
+                    ):
                         prev_progress = previous_status[url]["progress"] or 0
 
                     if progress - prev_progress >= 10:
-                        print(
-                            f"  ↑ Progress increased by {progress - prev_progress}%")
+                        print(f"  ↑ Progress increased by {progress - prev_progress}%")
 
                 # Show error if failed
                 if status == "failed" and task.status.error:
@@ -101,10 +100,7 @@ async def main():
                     print(f"Directory: {task.temp_dir}")
 
                 # Update status tracking
-                previous_status[url] = {
-                    "status": status,
-                    "progress": progress
-                }
+                previous_status[url] = {"status": status, "progress": progress}
 
                 # Check if we need to continue monitoring
                 if status not in ["completed", "failed"]:
@@ -123,7 +119,9 @@ async def main():
         await clone_future
 
     except KeyboardInterrupt:
-        print("\nMonitoring interrupted. Clone operations may continue in the background.")
+        print(
+            "\nMonitoring interrupted. Clone operations may continue in the background."
+        )
 
     print("\nAll clone operations completed or failed.")
 
@@ -146,8 +144,9 @@ async def main():
     for root, _, files in os.walk(repo_path):
         for file in files:
             if file.endswith(".py"):
-                file_paths.append(os.path.join(
-                    root, file).replace(repo_path + os.sep, ""))
+                file_paths.append(
+                    os.path.join(root, file).replace(repo_path + os.sep, "")
+                )
                 if len(file_paths) >= 3:  # Limit to 3 files for this example
                     break
         if len(file_paths) >= 3:
@@ -169,7 +168,9 @@ async def main():
                         authors[author] = 1
 
                 print("Top contributors:")
-                for author, count in sorted(authors.items(), key=lambda x: x[1], reverse=True)[:3]:
+                for author, count in sorted(
+                    authors.items(), key=lambda x: x[1], reverse=True
+                )[:3]:
                     print(f"  {author}: {count} lines")
             else:  # Error case
                 print(f"Error analyzing {file_path}: {blame_info}")
@@ -187,7 +188,7 @@ async def main():
             print(f"Commit: {commit['sha'][:7]}")
             print(f"Author: {commit['author_name']}")
             print(f"Date: {commit['author_timestamp']}")
-            message_summary = commit['message'].split('\n')[0][:50]
+            message_summary = commit["message"].split("\n")[0][:50]
             print(f"Message: {message_summary}...")
             print(f"Changes: +{commit['additions']} -{commit['deletions']}")
             print("")
