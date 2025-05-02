@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
         include:
           - os: ubuntu-latest
             target: x86_64
@@ -24,71 +24,25 @@ jobs:
 
     steps:
       - name: Checkout code
-        shell: bash
-        run: |
-          # Actions run in the workspace (repo) directory by default
-          echo "Current directory: $PWD"
-          
-          # In a self-hosted runner, we need to manually pull the code
-          REPO_URL="https://github.com/${GITHUB_REPOSITORY}.git"
-          
-          # If we're not in the repo directory already, get the code
-          if [ ! -d ".git" ]; then
-            echo "Initializing git repository"
-            git init
-            git remote add origin $REPO_URL
-          fi
-          
-          # For tags
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            # Get all tags and branches
-            git fetch origin +refs/tags/*:refs/tags/*
-            
-            # Checkout the specific tag
-            TAG="${GITHUB_REF#refs/tags/}"
-            git checkout -f "$TAG"
-            echo "Checked out tag $TAG"
-          else
-            # Regular branch checkout
-            git fetch origin "$GITHUB_REF"
-            git checkout -f "$GITHUB_SHA"
-            echo "Repository checked out at $(git rev-parse HEAD)"
-          fi
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        shell: bash
-        run: |
-          if [ "${{ runner.os }}" == "Linux" ]; then
-            sudo apt-get update
-            sudo apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev python${{ matrix.python-version }}-venv python3-pip
-          elif [ "${{ runner.os }}" == "macOS" ]; then
-            brew install python@${{ matrix.python-version }}
-          elif [ "${{ runner.os }}" == "Windows" ]; then
-            choco install python --version=${{ matrix.python-version }}
-          fi
-          python${{ matrix.python-version }} -m pip install --upgrade pip
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up Rust
-        shell: bash
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source "$HOME/.cargo/env"
-          rustup default stable
-          
-          # Add additional targets for macOS
-          if [ "${{ runner.os }}" == "macOS" ]; then
-            rustup target add x86_64-apple-darwin aarch64-apple-darwin
-          fi
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin, aarch64-apple-darwin
 
       - name: Install dependencies
-        shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install maturin==1.8.3 build twine
+          pip install maturin==1.4.0 build twine
           maturin --version
           
       - name: Environment Info
-        shell: bash
         run: |
           python --version
           rustc --version
@@ -98,7 +52,6 @@ jobs:
 
       - name: Build wheels for macOS
         if: runner.os == 'macOS'
-        shell: bash
         run: |
           echo "Building for macOS with universal2 target"
           rustup target add x86_64-apple-darwin aarch64-apple-darwin
@@ -111,38 +64,32 @@ jobs:
 
       - name: Build wheels for Linux
         if: runner.os == 'Linux'
-        shell: bash
         run: |
           echo "Building for Linux"
           maturin build --release --strip --out dist
 
       - name: Build wheels for Windows
         if: runner.os == 'Windows'
-        shell: pwsh
         run: |
           echo "Building for Windows"
           # For Windows builds
           maturin build --release --strip --out dist
 
       - name: Build source distribution
-        if: runner.os == 'Linux' && matrix.python-version == '3.12'
-        shell: bash
+        if: runner.os == 'Linux' && matrix.python-version == '3.10'
         run: |
           echo "Building source distribution"
           python -m build --sdist
           ls -la dist/
 
       - name: Upload wheels as artifacts
-        shell: bash
-        run: |
-          echo "Uploading wheels-${{ matrix.os }}-${{ matrix.python-version }}"
-          # In a real implementation, you would upload the artifacts to a storage service
-          mkdir -p /tmp/artifacts/wheels-${{ matrix.os }}-${{ matrix.python-version }}
-          cp dist/*.whl /tmp/artifacts/wheels-${{ matrix.os }}-${{ matrix.python-version }}/
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-${{ matrix.python-version }}
+          path: dist/*.whl
 
       - name: Check Distribution Files (Unix)
         if: runner.os != 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        shell: bash
         run: |
           echo "Checking distribution files"
           ls -la dist/
@@ -154,7 +101,6 @@ jobs:
 
       - name: Check Distribution Files (Windows)
         if: runner.os == 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
         run: |
           echo "Checking distribution files"
           dir dist
@@ -166,7 +112,6 @@ jobs:
 
       - name: Publish to PyPI
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        shell: bash
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
