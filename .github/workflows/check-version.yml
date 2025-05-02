@@ -56,8 +56,18 @@ jobs:
       - name: Setup Python
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3.10 python3.10-dev python3.10-venv python3-pip
-          python3.10 -m pip install --upgrade pip
+          # Try python3.10 first, fall back to system Python if not available
+          if command -v python3.10 &> /dev/null; then
+            # Use Python 3.10 if available
+            PYTHON_CMD=python3.10
+          else
+            # Fall back to system python3
+            PYTHON_CMD=python3
+            sudo apt-get install -y python3-dev python3-venv python3-pip
+          fi
+          
+          echo "Using Python: $($PYTHON_CMD --version)"
+          $PYTHON_CMD -m pip install --upgrade pip
 
       - name: Cache pip
         run: |
@@ -73,8 +83,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install toml
+          # Use the same Python command as in the setup step
+          if command -v python3.10 &> /dev/null; then
+            PYTHON_CMD=python3.10
+          else
+            PYTHON_CMD=python3
+          fi
+          
+          $PYTHON_CMD -m pip install --upgrade pip
+          $PYTHON_CMD -m pip install toml
 
       - name: Extract version
         id: version
@@ -88,7 +105,14 @@ jobs:
             exit 1
           fi
           
-          VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+          # Use the same Python command as before
+          if command -v python3.10 &> /dev/null; then
+            PYTHON_CMD=python3.10
+          else
+            PYTHON_CMD=python3
+          fi
+          
+          VERSION=$($PYTHON_CMD -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $VERSION"
           echo "Found version $VERSION in pyproject.toml"
