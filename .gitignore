@@ -90,7 +90,9 @@ ENV/
 *.suo
 *.ipch
 *.ncb
+.claude
 claude.md
+dev_docs/
 .build/
 cmake-build-*/
 CMakeFiles/
