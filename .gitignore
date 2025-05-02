@@ -55,3 +55,56 @@ ENV/
 *.swp
 *.swo
 .DS_Store%
+
+# C/C++ build artifacts
+*.o
+*.obj
+*.lo
+*.la
+*.al
+*.libs
+*.dll
+*.exe
+*.so
+*.dylib
+*.lib
+*.a
+
+# Debug files
+*.dSYM/
+*.idb
+*.pdb
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Executable files
+*.out
+
+# IDE and build system files
+*.vcxproj*
+*.sln
+*.opensdf
+*.sdf
+*.suo
+*.ipch
+*.ncb
+claude.md
+.build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+*.make
+*.cmake
+
+# Qt Creator files
+*.pro.user
+*.qmake.stash
+*.moc
+
+# Other common
+tags
+*.swp
+*~
