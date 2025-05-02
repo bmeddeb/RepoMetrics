@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-RepoMetrics Basic Usage Example
+GitFleet Basic Usage Example
 
-This example demonstrates how to use the RepoMetrics library to:
+This example demonstrates how to use the GitFleet library to:
 1. Initialize a repository manager
 2. Clone repositories
 3. Check clone statuses
@@ -13,7 +13,7 @@ This example demonstrates how to use the RepoMetrics library to:
 import os
 import asyncio
 
-from RepoMetrics import RepoManager
+from GitFleet import RepoManager
 
 # GitHub credentials - replace with your own or use environment variables
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "your-username")

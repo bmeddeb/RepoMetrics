@@ -1,13 +1,13 @@
 [package]
-name = "repo_metrics"
+name = "git_fleet"
 version = "0.1.0"
 edition = "2021"
 authors = ["Ben Meddeb <bmeddeb@asu.edu>"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/bmeddeb/RepoMetrics"
+repository = "https://github.com/bmeddeb/GitFleet"
 
 [lib]
-name = "RepoMetrics"
+name = "GitFleet"
 crate-type = ["cdylib"]
 
 [dependencies]

@@ -1,6 +1,6 @@
-# RepoMetrics Python API
+# GitFleet Python API
 
-Welcome to the documentation for the RepoMetrics Python API, which provides high-performance Git blame operations and repository management.
+Welcome to the documentation for the GitFleet Python API, which provides high-performance Git blame operations and repository management.
 
 ## Available Classes
 

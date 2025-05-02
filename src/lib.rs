@@ -19,7 +19,7 @@ use crate::clone::{InternalCloneStatus, InternalRepoCloneTask};
 use crate::repo::InternalRepoManagerLogic;
 
 // --- Exposed Python Class: CloneStatus ---
-#[pyclass(name = "CloneStatus", module = "RepoMetrics")]
+#[pyclass(name = "CloneStatus", module = "GitFleet")]
 #[derive(Debug, Clone)]
 pub struct ExposedCloneStatus {
     #[pyo3(get)]
@@ -58,7 +58,7 @@ impl From<InternalCloneStatus> for ExposedCloneStatus {
 }
 
 // --- Exposed Python Class: CloneTask ---
-#[pyclass(name = "CloneTask", module = "RepoMetrics")]
+#[pyclass(name = "CloneTask", module = "GitFleet")]
 #[derive(Debug, Clone)]
 pub struct ExposedCloneTask {
     #[pyo3(get)]
@@ -80,7 +80,7 @@ impl From<InternalRepoCloneTask> for ExposedCloneTask {
 }
 
 // --- Exposed Python Class: RepoManager ---
-#[pyclass(name = "RepoManager", module = "RepoMetrics")]
+#[pyclass(name = "RepoManager", module = "GitFleet")]
 #[derive(Clone)]
 pub struct RepoManager {
     inner: Arc<InternalRepoManagerLogic>,
@@ -261,7 +261,7 @@ impl RepoManager {
 // --- Python module definition ---
 #[allow(non_snake_case)]
 #[pymodule]
-fn RepoMetrics(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+fn GitFleet(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<RepoManager>()?;
     m.add_class::<ExposedCloneStatus>()?;
     m.add_class::<ExposedCloneTask>()?;

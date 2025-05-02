@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-RepoMetrics Clone Monitoring Example
+GitFleet Clone Monitoring Example
 
-This example demonstrates how to use the RepoMetrics library to:
+This example demonstrates how to use the GitFleet library to:
 1. Initialize a repository manager
 2. Clone repositories
 3. Monitor cloning progress with detailed status updates
@@ -15,7 +15,7 @@ import os
 import asyncio
 import argparse
 from datetime import datetime
-from RepoMetrics import RepoManager
+from GitFleet import RepoManager
 
 # ANSI color codes for terminal output
 COLORS = {
@@ -184,7 +184,7 @@ async def main():
         description='Clone and monitor Git repositories')
     parser.add_argument('--repos', '-r', nargs='+', default=["https://github.com/bmeddeb/gradelib",
                                                              "https://github.com/bmeddeb/SER402-Team3",
-                                                             "https://github.com/bmeddeb/repometrics"],
+                                                             "https://github.com/bmeddeb/GitFleet"],
                         help='List of repository URLs to clone')
     parser.add_argument('--username', '-u', default=os.environ.get("GITHUB_USERNAME", ""),
                         help='GitHub username (or set GITHUB_USERNAME env var)')

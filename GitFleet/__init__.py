@@ -1,12 +1,12 @@
 """
-RepoMetrics - High-performance Git blame operations and repository management
+GitFleet - High-performance Git blame operations and repository management
 
 This module provides Python bindings for Git repository analysis,
 focusing on blame operations and commit history.
 """
 
 
-from RepoMetrics import (
+from GitFleet import (
     RepoManager,
     CloneStatus,
     CloneTask,
