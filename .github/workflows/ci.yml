@@ -64,8 +64,8 @@ jobs:
         run: |
           python -m venv .venv
           source .venv/bin/activate
-          pip install maturin pytest
-          pip install -e ".[dev]"
+          pip install maturin pytest pydantic>=2.0.0
+          pip install -e ".[dev,pydantic]"
 
       - name: Build Rust extension with maturin
         run: |
