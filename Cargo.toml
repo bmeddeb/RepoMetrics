@@ -20,8 +20,13 @@ futures = "0.3.31"
 
 # Python bindings
 pyo3 = { version = "0.24.2", features = ["extension-module"] }
-
 pyo3-async-runtimes = { version = "0.24.0", features = ["attributes", "tokio-runtime"] }
+
+# Git API providers
+reqwest = { version = "0.12.0", features = ["json"] }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+async-trait = "0.1.79"
 
 # Other utilities
 tempfile = "3.19.1"

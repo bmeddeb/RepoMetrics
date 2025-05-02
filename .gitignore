@@ -83,7 +83,7 @@ ENV/
 *.out
 
 # IDE and build system files
-project_status.md
+dev_docs/
 *.vcxproj*
 *.sln
 *.opensdf
@@ -109,3 +109,4 @@ Makefile
 tags
 *.swp
 *~
+**/.claude/settings.local.json
