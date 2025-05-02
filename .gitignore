@@ -83,6 +83,7 @@ ENV/
 *.out
 
 # IDE and build system files
+project_status.md
 *.vcxproj*
 *.sln
 *.opensdf
