@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "GitFleet"
-version = "0.2.0"
+version = "0.2.1"
 description = "GitFleet is a high-performance Python library (powered by Rust) for managing and analyzing Git repositories in bulk. It supports asynchronous cloning, parallel git blame and commit analysis using Rayon, and integrates with GitHub, GitLab, and BitBucket APIs. Designed for large-scale repository analysis, GitFleet handles API token rotation, monitors rate limits, and provides detailed progress tracking across operations."
 authors = [
     {name = "Ben", email = "bmeddeb@asu.edu"}
