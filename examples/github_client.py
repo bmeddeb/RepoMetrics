@@ -9,6 +9,10 @@ This example demonstrates how to use the GitFleet GitHub API client to:
 4. List contributors and branches
 5. Convert the results to pandas DataFrames
 6. Check rate limits
+
+Optional dependencies:
+- pandas: Required for DataFrame conversion (pip install pandas)
+  Install with: pip install "gitfleet[pandas]"
 """
 
 import os

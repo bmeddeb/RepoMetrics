@@ -4,47 +4,52 @@ build-backend = "maturin"
 
 [project]
 name = "GitFleet"
-version = "0.1.0"
-description = "GitFleet is a high-performance Python library (powered by Rust) for managing and analyzing Git repositories in bulk. It supports asynchronous cloning, parallel git blame and commit analysis using Rayon, and integrates with GitHub, GitLab, and GitBucket APIs. Designed for large-scale repository analysis, GitFleet handles API token rotation, monitors rate limits, and provides detailed progress tracking across operations."
+version = "0.2.0"
+description = "GitFleet is a high-performance Python library (powered by Rust) for managing and analyzing Git repositories in bulk. It supports asynchronous cloning, parallel git blame and commit analysis using Rayon, and integrates with GitHub, GitLab, and BitBucket APIs. Designed for large-scale repository analysis, GitFleet handles API token rotation, monitors rate limits, and provides detailed progress tracking across operations."
 authors = [
     {name = "Ben", email = "bmeddeb@asu.edu"}
 ]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "argparse>=1.4.0",
-    "asyncio>=3.4.3", # For asynchronous operations
-    "black>=22.1.0",
-    "cryptography>=44.0.2",
-    "httpx>=0.24.0", # Async HTTP client
-    "isort>=5.10.1",
-    "maturin>=1.8.3",
-    "pydantic>=2.11.4",
-    "pytest>=6.0.0",
+    "httpx>=0.24.0",  # Required for API clients
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Rust",
     "License :: OSI Approved :: MIT License",
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Version Control :: Git",
 ]
 
 [project.optional-dependencies]
-providers = [
-    "httpx>=0.24.0",
+crypto = [
+    "cryptography>=44.0.2",  # For secure token encryption
 ]
 pandas = [
+    "pandas>=2.0.0",  # For data analysis
+]
+pydantic = [
+    "pydantic>=2.0.0",  # For model validation (future use)
+]
+dev = [
+    "black>=22.1.0",
+    "isort>=5.10.1",
+    "pytest>=6.0.0",
+    "maturin>=1.8.3",
+]
+examples = [
     "pandas>=2.0.0",
+    "cryptography>=44.0.2",
 ]
 all = [
-    "httpx>=0.24.0",
+    "cryptography>=44.0.2",
     "pandas>=2.0.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.urls]

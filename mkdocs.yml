@@ -39,6 +39,9 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Getting Started:
+      - Installation: installation.md
+      - Migration Guide: migration-guide.md
   - Core API:
       - Repository Manager: RepoManager.md
       - Clone Status: CloneStatus.md
@@ -46,5 +49,7 @@ nav:
   - Provider APIs:
       - Overview: providers/index.md
       - GitHub: providers/github.md
+      - Data Models: providers/models.md
+      - Implementation: providers/implementation.md
   - Advanced:
       - Token Management: token-management.md

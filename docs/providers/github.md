@@ -36,12 +36,13 @@ github = GitHubClient(
 Retrieve repositories for a user or organization:
 
 ```python
-# Get repositories for a user
+# Get repositories for a user (returns a List[RepoInfo])
 repos = await github.fetch_repositories("octocat")
 
-# Print repository names
+# Print repository names using dataclass attributes
 for repo in repos:
-    print(f"{repo['full_name']} - {repo['description']}")
+    print(f"{repo.full_name} - {repo.description}")
+    print(f"  Stars: {repo.stargazers_count}, Language: {repo.language}")
 ```
 
 ### User Information
@@ -49,10 +50,12 @@ for repo in repos:
 Get information about the authenticated user:
 
 ```python
-user_info = await github.fetch_user_info()
-print(f"Authenticated as: {user_info['login']}")
-print(f"Name: {user_info['name']}")
-print(f"Email: {user_info['email']}")
+# Returns UserInfo dataclass
+user = await github.fetch_user_info()
+print(f"Authenticated as: {user.login}")
+print(f"Name: {user.name}")
+print(f"Email: {user.email}")
+print(f"Avatar URL: {user.avatar_url}")
 ```
 
 ### Repository Details
@@ -60,10 +63,14 @@ print(f"Email: {user_info['email']}")
 Fetch detailed information about a specific repository:
 
 ```python
-repo_details = await github.fetch_repository_details("octocat", "hello-world")
-print(f"Description: {repo_details['description']}")
-print(f"Topics: {repo_details['topics']}")
-print(f"License: {repo_details['license']}")
+# Returns RepoDetails dataclass
+repo = await github.fetch_repository_details("octocat", "hello-world")
+print(f"Description: {repo.description}")
+print(f"Topics: {', '.join(repo.topics)}")
+print(f"License: {repo.license}")
+print(f"Created: {repo.created_at}")
+print(f"Updated: {repo.updated_at}")
+print(f"Has Wiki: {repo.has_wiki}")
 ```
 
 ### Contributors and Branches
@@ -71,17 +78,22 @@ print(f"License: {repo_details['license']}")
 Get contributors for a repository:
 
 ```python
+# Returns List[ContributorInfo]
 contributors = await github.fetch_contributors("octocat", "hello-world")
 for contributor in contributors:
-    print(f"{contributor['login']} - {contributor['contributions']} contributions")
+    print(f"{contributor.login} - {contributor.contributions} contributions")
+    print(f"  User ID: {contributor.id}")
 ```
 
 Get branches for a repository:
 
 ```python
+# Returns List[BranchInfo]
 branches = await github.fetch_branches("octocat", "hello-world")
 for branch in branches:
-    print(f"{branch['name']} - {'Protected' if branch['protected'] else 'Not protected'}")
+    protected = "Protected" if branch.protected else "Not protected"
+    print(f"{branch.name} - {protected}")
+    print(f"  Commit SHA: {branch.commit_sha}")
 ```
 
 ### Rate Limits
@@ -89,14 +101,35 @@ for branch in branches:
 Check your current rate limit status:
 
 ```python
+# Returns RateLimitInfo dataclass
 rate_limit = await github.get_rate_limit()
-print(f"API calls remaining: {rate_limit['remaining']}/{rate_limit['limit']}")
-print(f"Reset time: {rate_limit['reset_time']}")
+print(f"API calls remaining: {rate_limit.remaining}/{rate_limit.limit}")
+print(f"Reset time: {rate_limit.reset_time}")
+print(f"Used: {rate_limit.used}")
+```
+
+### Implementation Selection
+
+You can choose between the Rust and Python implementations:
+
+```python
+# Default: Use Rust implementation if available, fall back to Python
+github = GitHubClient(token="your-token")
+
+# Force Python implementation
+github_py = GitHubClient(
+    token="your-token",
+    use_python_impl=True
+)
+
+# Check which implementation is being used
+if hasattr(github, "_use_rust"):
+    print(f"Using Rust implementation: {github._use_rust}")
 ```
 
 ## Error Handling
 
-The GitHub client raises specific exceptions for different error cases:
+The GitHub client includes a comprehensive error hierarchy:
 
 ```python
 from GitFleet.providers.base import ProviderError, AuthError, RateLimitError
@@ -105,10 +138,34 @@ try:
     repos = await github.fetch_repositories("octocat")
 except AuthError as e:
     print(f"Authentication error: {e}")
+    print(f"Provider type: {e.provider_type}")  # Will be ProviderType.GITHUB
 except RateLimitError as e:
     print(f"Rate limit exceeded. Resets at: {e.reset_time}")
+    print(f"Provider type: {e.provider_type}")  # Will be ProviderType.GITHUB
 except ProviderError as e:
-    print(f"GitHub API error: {e}")
+    print(f"Provider error: {e}")
+    print(f"Provider type: {e.provider_type}")  # Will be ProviderType.GITHUB
+```
+
+You can also use provider-specific error classes:
+
+```python
+from GitFleet.providers.github import GitHubError
+
+try:
+    repos = await github.fetch_repositories("octocat")
+except GitHubError as e:
+    print(f"GitHub error: {e}")
+```
+
+The error hierarchy is as follows:
+
+```
+Exception
+└── ProviderError (base.py)
+    ├── AuthError (base.py)
+    ├── RateLimitError (base.py)
+    └── GitHubError (github.py)
 ```
 
 ## Data Analysis with Pandas
@@ -116,7 +173,13 @@ except ProviderError as e:
 Convert API response data to pandas DataFrames for analysis:
 
 ```python
-# Fetch repositories and convert to DataFrame
+# Method 1: Using utility function (recommended)
+from GitFleet import to_dataframe
+
+repos = await github.fetch_repositories("octocat")
+df = to_dataframe(repos)
+
+# Method 2: Using client method
 repos = await github.fetch_repositories("octocat")
 df = await github.to_pandas(repos)
 
@@ -128,6 +191,46 @@ print(popular_repos[["name", "stargazers_count", "forks_count"]].head())
 # Language distribution
 print("\nLanguage distribution:")
 print(df["language"].value_counts())
+
+# Filter by attributes
+python_repos = df[df["language"] == "Python"]
+print(f"\nPython repositories: {len(python_repos)}")
+
+# Advanced queries
+active_repos = df[(df["updated_at"] > "2023-01-01") & (df["fork"] == False)]
+print(f"\nActive non-fork repos since 2023: {len(active_repos)}")
+```
+
+### Working with Contributors
+
+```python
+contributors = await github.fetch_contributors("octocat", "hello-world")
+contributors_df = to_dataframe(contributors)
+
+# Find top contributors
+top_contributors = contributors_df.sort_values("contributions", ascending=False)
+print(top_contributors[["login", "contributions"]].head(10))
+```
+
+### Customizing DataFrame Conversion
+
+You can customize the DataFrame conversion by accessing the raw data:
+
+```python
+repos = await github.fetch_repositories("octocat")
+
+# Custom conversion with selected fields
+import pandas as pd
+custom_data = [
+    {
+        "repo_name": repo.name,
+        "stars": repo.stargazers_count or 0,
+        "is_popular": (repo.stargazers_count or 0) > 100,
+        "lang": repo.language or "Unknown"
+    }
+    for repo in repos
+]
+custom_df = pd.DataFrame(custom_data)
 ```
 
 ## Pagination
