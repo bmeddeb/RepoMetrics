@@ -40,5 +40,4 @@ jobs:
       - name: Run tests
         run: |
           source .venv/bin/activate
-          cd python
-          pytest --ignore=tests/test_taiga.py
+          pytest tests/
