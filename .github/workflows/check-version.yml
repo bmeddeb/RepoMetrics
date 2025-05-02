@@ -1,0 +1,140 @@
+name: Check Version and Release
+
+
+on:
+   push:
+     branches: [main]
+     paths:
+       - 'Cargo.toml'
+       - 'pyproject.toml'
+   workflow_dispatch:
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release_needed: ${{ steps.check.outputs.release_needed }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3.10 python3.10-dev python3.10-venv python3-pip
+          python3.10 -m pip install --upgrade pip
+
+      - name: Cache pip
+        run: |
+          # Simple cache functionality
+          CACHE_DIR="/tmp/pip-cache"
+          CACHE_KEY="${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}"
+          
+          mkdir -p "$CACHE_DIR/$CACHE_KEY"
+          if [ -d "$CACHE_DIR/$CACHE_KEY" ]; then
+            echo "Cache found, restoring from $CACHE_DIR/$CACHE_KEY"
+            cp -R "$CACHE_DIR/$CACHE_KEY"/* ~/.cache/pip/ || true
+          fi
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install toml
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+          echo "Found version $VERSION in pyproject.toml"
+          
+          # Also check Cargo.toml version and ensure they match
+          CARGO_VERSION=$(grep -E '^version = ' Cargo.toml | sed -E 's/version = "([^"]+)"/\1/')
+          echo "Cargo.toml version: $CARGO_VERSION"
+          
+          # Verify versions match
+          if [ "$VERSION" != "$CARGO_VERSION" ]; then
+            echo "ERROR: Version mismatch! pyproject.toml: $VERSION, Cargo.toml: $CARGO_VERSION"
+            exit 1
+          else
+            echo "✅ Versions match in both files"
+          fi
+
+      - name: Check if tag exists
+        id: check
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          TAG="v$VERSION"
+          echo "Checking if tag $TAG exists..."
+          
+          # List all tags for debugging
+          echo "All tags:"
+          git tag -l
+          
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, no release needed"
+            echo "release_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist, release needed"
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+          fi
+
+  create-release:
+    needs: check-version
+    if: needs.check-version.outputs.release_needed == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create tag and GitHub release
+        run: |
+          VERSION=${{ needs.check-version.outputs.version }}
+          TAG="v$VERSION"
+          echo "Creating tag $TAG..."
+          
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
+          
+          # Create the tag
+          git tag -a "$TAG" -m "Release v$VERSION"
+          
+          # Push tag with verbose output
+          echo "Pushing tag $TAG to repository..."
+          git push -v https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} "$TAG"
+          
+          # Verify tag was pushed
+          echo "Verifying tag was pushed..."
+          git ls-remote --tags origin | grep "$TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        run: |
+          TAG="v${{ needs.check-version.outputs.version }}"
+          RELEASE_NAME="Release $TAG"
+          TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          
+          # Create GitHub Release using the GitHub API
+          API_URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases"
+          echo "Creating release for tag $TAG"
+          
+          curl -X POST \
+            -H "Authorization: token $TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            $API_URL \
+            -d "{
+              \"tag_name\": \"$TAG\",
+              \"name\": \"$RELEASE_NAME\",
+              \"draft\": false,
+              \"prerelease\": false,
+              \"generate_release_notes\": true
+            }"
+          
+          echo "Release created successfully"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

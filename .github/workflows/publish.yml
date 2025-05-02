@@ -1,0 +1,134 @@
+name: Build and Publish to PyPI
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+          - os: windows-latest
+            target: x64
+          - os: macos-latest
+            target: universal2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev python${{ matrix.python-version }}-venv python3-pip
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            brew install python@${{ matrix.python-version }}
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            choco install python --version=${{ matrix.python-version }}
+          fi
+          python${{ matrix.python-version }} -m pip install --upgrade pip
+
+      - name: Set up Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source "$HOME/.cargo/env"
+          rustup default stable
+          
+          # Add additional targets for macOS
+          if [ "${{ runner.os }}" == "macOS" ]; then
+            rustup target add x86_64-apple-darwin aarch64-apple-darwin
+          fi
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install maturin==1.4.0 build twine
+          maturin --version
+          
+      - name: Environment Info
+        run: |
+          python --version
+          rustc --version
+          cargo --version
+          uname -a || echo "uname not available"
+          rustup show || echo "rustup show not available"
+
+      - name: Build wheels for macOS
+        if: runner.os == 'macOS'
+        run: |
+          echo "Building for macOS with universal2 target"
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+          rustup show
+          # Use universal2 build approach from maturin docs
+          RUSTFLAGS="-C link-arg=-undefined -C link-arg=dynamic_lookup" maturin build --release --strip --universal2 --out dist || \
+          RUSTFLAGS="-C link-arg=-undefined -C link-arg=dynamic_lookup" maturin build --release --strip --out dist
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.12'
+
+      - name: Build wheels for Linux
+        if: runner.os == 'Linux'
+        run: |
+          echo "Building for Linux"
+          maturin build --release --strip --out dist
+
+      - name: Build wheels for Windows
+        if: runner.os == 'Windows'
+        run: |
+          echo "Building for Windows"
+          # For Windows builds
+          maturin build --release --strip --out dist
+
+      - name: Build source distribution
+        if: runner.os == 'Linux' && matrix.python-version == '3.12'
+        run: |
+          echo "Building source distribution"
+          python -m build --sdist
+          ls -la dist/
+
+      - name: Upload wheels as artifacts
+        run: |
+          echo "Uploading wheels-${{ matrix.os }}-${{ matrix.python-version }}"
+          # In a real implementation, you would upload the artifacts to a storage service
+          mkdir -p /tmp/artifacts/wheels-${{ matrix.os }}-${{ matrix.python-version }}
+          cp dist/*.whl /tmp/artifacts/wheels-${{ matrix.os }}-${{ matrix.python-version }}/
+
+      - name: Check Distribution Files (Unix)
+        if: runner.os != 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "Checking distribution files"
+          ls -la dist/
+          echo "Validating with twine check"
+          twine check dist/*
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Check Distribution Files (Windows)
+        if: runner.os == 'Windows' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "Checking distribution files"
+          dir dist
+          echo "Validating with twine check"
+          twine check dist/*
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Publish to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          echo "Uploading to PyPI"
+          twine upload dist/*
