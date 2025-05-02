@@ -1,5 +1,10 @@
+"""
+Type stubs for GitFleet package.
+"""
+
 from typing import Any, Awaitable, Dict, List, Optional, Union
 
+# Import from core Rust bindings
 class CloneStatus:
     status_type: str
     progress: Optional[int]
@@ -24,3 +29,39 @@ class RepoManager:
         self, repo_path: str
     ) -> Awaitable[Union[List[Dict[str, Any]], str]]: ...
     def cleanup(self) -> Dict[str, Union[bool, str]]: ...
+
+# Import provider clients
+from GitFleet.providers import (
+    GitHubClient,
+    GitProviderClient,
+    ProviderType,
+    TokenManager,
+    TokenInfo,
+    TokenStatus,
+    GitHubError,
+    AuthError,
+    RateLimitError,
+)
+
+# Import utility functions
+from GitFleet.utils import (
+    CredentialManager,
+    CredentialEntry,
+    RateLimiter,
+    rate_limited,
+    to_dataframe,
+    to_dict,
+    to_json,
+    flatten_dataframe,
+)
+
+# Import models
+from GitFleet.models import (
+    UserInfo,
+    RepoInfo,
+    RateLimitInfo,
+    BranchInfo,
+    ContributorInfo,
+)
+
+__version__: str
