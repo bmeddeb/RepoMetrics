@@ -1,1 +1,130 @@
-# GitFleet
+# 🚀 GitFleet
+
+**High-performance Git repository analysis and management in Python, powered by Rust**
+
+[![PyPI version](https://img.shields.io/pypi/v/gitfleet)](https://pypi.org/project/gitfleet/)
+[![License](https://img.shields.io/github/license/your-org/gitfleet)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/your-org/gitfleet/ci.yml)](https://github.com/your-org/gitfleet/actions)
+
+---
+
+## ⚡ Overview
+
+**GitFleet** is a high-performance Python library built in Rust for asynchronous Git repository analysis at scale.
+
+It supports bulk operations like:
+
+- Parallel `git blame` across many files
+- Async cloning of hundreds of repositories
+- GitHub, GitLab, and GitBucket integration
+- API token rotation and rate limit monitoring
+- Real-time progress tracking for long-running tasks
+
+Ideal for:
+
+- Grading systems (e.g., student GitHub repos)
+- Research in software engineering and code evolution
+- DevOps and CI insights at scale
+- Custom git analytics platforms
+
+---
+
+## 🔧 Features
+
+- ✅ **Rayon-powered multithreaded Git operations**
+- ✅ **Asynchronous repo cloning with async/await**
+- ✅ **Integrated clients for GitHub, GitLab, GitBucket**
+- ✅ **Multiple token management with auto-rotation**
+- ✅ **Rate limit tracking and resilience**
+- ✅ **Modular architecture: easily extendable**
+
+---
+
+## 📦 Installation
+
+```bash
+pip install gitfleet
+```
+
+> Requires Python 3.8+ and a Rust toolchain for building native extensions.
+
+---
+
+## 🚀 Quick Start
+
+```python
+import asyncio
+from gitfleet import RepoManager
+
+async def main():
+    manager = RepoManager()
+    await manager.clone_repos([
+        "https://github.com/user/repo1.git",
+        "https://github.com/user/repo2.git"
+    ])
+    results = await manager.blame_all("target_file.py")
+    print(results)
+
+asyncio.run(main())
+```
+
+---
+
+## 🔌 Integration
+
+GitFleet is designed to interoperate with:
+
+- **GitHub, GitLab, GitBucket** via async clients
+- Jupyter notebooks (Pandas-friendly outputs)
+- Flask, FastAPI, and async dashboards (e.g., Plotly Dash)
+- CI/CD pipelines or grading systems
+
+---
+
+## 🛠 Architecture
+
+| Layer            | Technology    | Purpose                                      |
+|------------------|---------------|----------------------------------------------|
+| Rust Core        | `git2`, `rayon` | Fast Git ops and parallelism                |
+| Python Interface | `PyO3`, `maturin` | Native bindings and async APIs             |
+| Async Clients    | `httpx`, `aiohttp` | GitHub/GitLab API access                   |
+| Token Manager    | Custom        | Multi-token rotation & rate monitoring       |
+
+---
+
+## 📈 Roadmap
+
+- [ ] Git diff and patch inspection
+- [ ] Repository graph & commit visualizations
+- [ ] CSV/JSON export for data analysis
+- [ ] Web dashboard example with live metrics
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! To get started:
+
+```bash
+git clone https://github.com/your-org/gitfleet
+cd gitfleet
+pip install -e .
+```
+
+Run tests with:
+
+```bash
+pytest
+```
+
+---
+
+## 📄 License
+
+[MIT License](LICENSE)
+
+---
+
+## ✨ Credits
+
+GitFleet is inspired by the needs of large-scale Git analysis in grading, research, and dev tooling. Built with ❤️ using Rust + Python.

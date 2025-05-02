@@ -43,6 +43,7 @@ wheels/
 .installed.cfg
 *.egg
 .pytest_cache/
+uv.lock
 
 # Virtual environments
 venv/
@@ -83,6 +84,7 @@ ENV/
 *.out
 
 # IDE and build system files
+dev_docs/
 *.vcxproj*
 *.sln
 *.opensdf
@@ -110,3 +112,4 @@ Makefile
 tags
 *.swp
 *~
+**/.claude/settings.local.json

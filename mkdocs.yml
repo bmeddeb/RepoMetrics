@@ -5,7 +5,6 @@ site_dir: site
 plugins:
   - awesome-pages
 
-
 theme:
   name: material
   palette:
@@ -20,14 +19,14 @@ theme:
         icon: material/weather-night
         name: Switch to light
 
-    - features:
-        - navigation.tabs # Top tabs
-        - navigation.expand # Expand sections
-        - search.highlight # Highlight search terms
-        - toc: false # Left side bar
-        - content.code.annotate
-      vars:
-        content-width: 90%
+  features:
+    - navigation.tabs # Top tabs
+    - navigation.expand # Expand sections
+    - search.highlight # Highlight search terms
+    - content.code.annotate
+  
+  vars:
+    content-width: 90%
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -37,3 +36,15 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Core API:
+      - Repository Manager: RepoManager.md
+      - Clone Status: CloneStatus.md
+      - Clone Task: CloneTask.md
+  - Provider APIs:
+      - Overview: providers/index.md
+      - GitHub: providers/github.md
+  - Advanced:
+      - Token Management: token-management.md

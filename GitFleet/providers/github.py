@@ -1,69 +1,91 @@
 """
-GitHub API client implementation.
+GitHub API Client
+
+This module provides a client for interacting with the GitHub API.
+Both pure Python and Rust-based implementations are available.
 """
 
 import time
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union, cast
 
 import httpx
 
-from GitFleet.models.common import (BranchInfo, ContributorInfo, RateLimitInfo,
-                                    RepoInfo, UserInfo)
+from .base import (
+    GitProviderClient, ProviderType, RepoInfo, UserInfo, 
+    RateLimitInfo, RepoDetails, ContributorInfo, BranchInfo,
+    ProviderError, RateLimitError, AuthError
+)
 
-from .base import GitProviderClient, ProviderType
+# Import from token manager
 from .token_manager import TokenInfo, TokenManager
+
+# Try to import the Rust implementation
+try:
+    from GitFleet import GitHubClient as RustGitHubClient
+    RUST_AVAILABLE = True
+except ImportError:
+    RUST_AVAILABLE = False
 
 T = TypeVar("T")
 
 
-class GitHubError(Exception):
+class GitHubError(ProviderError):
     """Base exception for GitHub API errors."""
-
-    pass
-
-
-class AuthError(GitHubError):
-    """Exception raised for authentication errors."""
-
-    pass
-
-
-class RateLimitError(GitHubError):
-    """Exception raised when rate limits are exceeded."""
-
-    def __init__(self, message: str, reset_time: int):
-        self.reset_time = reset_time
-        super().__init__(message)
+    
+    def __init__(self, message: str):
+        super().__init__(message, ProviderType.GITHUB)
 
 
 class GitHubClient(GitProviderClient):
-    """GitHub API client implementation."""
-
+    """GitHub API client for interacting with GitHub repositories and users.
+    
+    This client provides methods for fetching repositories, user information,
+    and other GitHub-specific data. It can use either a pure Python implementation
+    or the Rust-based implementation for better performance.
+    
+    Args:
+        token: GitHub personal access token
+        base_url: Optional custom base URL for GitHub Enterprise
+        token_manager: Optional token manager for rate limit handling
+        use_python_impl: Force using the Python implementation even if Rust is available
+    """
+    
     def __init__(
         self,
         token: str,
         base_url: Optional[str] = None,
         token_manager: Optional[TokenManager] = None,
+        use_python_impl: bool = False
     ):
         """Initialize the GitHub client.
-
+        
         Args:
             token: GitHub personal access token
             base_url: Optional custom base URL for GitHub Enterprise
             token_manager: Optional token manager for rate limit handling
+            use_python_impl: Force using the Python implementation even if Rust is available
         """
         super().__init__(ProviderType.GITHUB)
         self.token = token
         self.base_url = base_url or "https://api.github.com"
-
+        self.use_python_impl = use_python_impl
+        
         # Setup token management
         self.token_manager = token_manager
         if token_manager:
             token_manager.add_token(token, ProviderType.GITHUB)
-
+            
+        # Use Rust implementation if available and not forced to use Python
+        if RUST_AVAILABLE and not use_python_impl:
+            self._client = RustGitHubClient(token, base_url)
+            self._use_rust = True
+        else:
+            self._use_rust = False
+    
     async def _request(self, method: str, endpoint: str, **kwargs) -> Any:
-        """Make an authenticated request to the GitHub API."""
+        """Make an authenticated request to the GitHub API using the Python implementation."""
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
 
         # Get a token from the manager if available, otherwise use the default
@@ -103,7 +125,9 @@ class GitHubClient(GitProviderClient):
                 if int(response.headers["X-RateLimit-Remaining"]) == 0:
                     reset_time = int(response.headers.get("X-RateLimit-Reset", 0))
                     raise RateLimitError(
-                        f"Rate limit exceeded. Resets at {reset_time}", reset_time
+                        f"Rate limit exceeded. Resets at {reset_time}", 
+                        ProviderType.GITHUB,
+                        reset_time
                     )
 
             # Handle authentication errors
@@ -112,15 +136,15 @@ class GitHubClient(GitProviderClient):
                     await self.token_manager.mark_token_invalid(
                         token_to_use, ProviderType.GITHUB
                     )
-                raise AuthError("Invalid GitHub token")
+                raise AuthError("Invalid GitHub token", ProviderType.GITHUB)
 
             # Raise for other error status codes
             response.raise_for_status()
 
             return response.json()
-
+    
     def _convert_to_model(self, data: Dict[str, Any], model_class: Type[T]) -> T:
-        """Convert API response data to a model instance."""
+        """Convert API response data to a model instance for the Python implementation."""
         # For RepoInfo, we need to handle the owner nested object
         if model_class == RepoInfo and "owner" in data and data["owner"]:
             owner_data = data["owner"]
@@ -193,7 +217,6 @@ class GitHubClient(GitProviderClient):
                     commit_sha=data["commit"]["sha"],
                     protected=data.get("protected", False),
                     provider_type=ProviderType.GITHUB,
-                    raw_data=data,
                 ),
             )
 
@@ -202,55 +225,126 @@ class GitHubClient(GitProviderClient):
             return cast(
                 T,
                 ContributorInfo(
-                    id=str(data.get("id", "")),
                     login=data["login"],
-                    contributions=data["contributions"],
+                    id=str(data.get("id", "")),
                     avatar_url=data.get("avatar_url"),
+                    contributions=data["contributions"],
                     provider_type=ProviderType.GITHUB,
-                    raw_data=data,
                 ),
             )
 
         raise ValueError(f"Unsupported model class: {model_class}")
-
+    
+    def _handle_error(self, error: Exception) -> None:
+        """Handle errors from the Rust client.
+        
+        Args:
+            error: Exception from the Rust client
+            
+        Raises:
+            Appropriate Python exception based on the error type
+        """
+        error_message = str(error)
+        
+        if "Authentication error" in error_message:
+            raise AuthError(error_message, self.provider_type)
+        elif "Rate limit exceeded" in error_message:
+            # Extract reset time from error message if available
+            reset_match = re.search(r"resets at timestamp: (\d+)", error_message)
+            reset_time = int(reset_match.group(1)) if reset_match else 0
+            raise RateLimitError(error_message, self.provider_type, reset_time)
+        elif "Resource not found" in error_message:
+            raise ProviderError(error_message, self.provider_type)
+        else:
+            raise ProviderError(error_message, self.provider_type)
+    
     async def fetch_repositories(self, owner: str) -> List[RepoInfo]:
-        """Fetch repositories for a user or organization."""
-        data = await self._request("GET", f"/users/{owner}/repos?per_page=100")
-        return [self._convert_to_model(repo, RepoInfo) for repo in data]
+        """Fetch repositories for an owner or organization."""
+        if self._use_rust:
+            try:
+                repos = await self._client.fetch_repositories(owner)
+                return repos
+            except Exception as e:
+                self._handle_error(e)
+        else:
+            data = await self._request("GET", f"/users/{owner}/repos?per_page=100")
+            return [self._convert_to_model(repo, RepoInfo) for repo in data]
 
     async def fetch_user_info(self) -> UserInfo:
         """Fetch information about the authenticated user."""
-        data = await self._request("GET", "/user")
-        return self._convert_to_model(data, UserInfo)
+        if self._use_rust:
+            try:
+                user_info = await self._client.fetch_user_info()
+                return user_info
+            except Exception as e:
+                self._handle_error(e)
+        else:
+            data = await self._request("GET", "/user")
+            return self._convert_to_model(data, UserInfo)
 
     async def get_rate_limit(self) -> RateLimitInfo:
         """Get current rate limit information."""
-        response = await self._request("GET", "/rate_limit")
-        return self._convert_to_model(response["resources"]["core"], RateLimitInfo)
+        if self._use_rust:
+            try:
+                rate_limit = await self._client.get_rate_limit()
+                return rate_limit
+            except Exception as e:
+                self._handle_error(e)
+        else:
+            response = await self._request("GET", "/rate_limit")
+            return self._convert_to_model(response["resources"]["core"], RateLimitInfo)
 
-    async def fetch_repository_details(self, owner: str, repo: str) -> RepoInfo:
+    async def fetch_repository_details(self, owner: str, repo: str) -> RepoDetails:
         """Fetch detailed information about a specific repository."""
-        data = await self._request("GET", f"/repos/{owner}/{repo}")
-        return self._convert_to_model(data, RepoInfo)
+        if self._use_rust:
+            try:
+                repo_details = await self._client.fetch_repository_details(owner, repo)
+                return repo_details
+            except Exception as e:
+                self._handle_error(e)
+        else:
+            data = await self._request("GET", f"/repos/{owner}/{repo}")
+            return self._convert_to_model(data, RepoInfo)
 
     async def fetch_contributors(self, owner: str, repo: str) -> List[ContributorInfo]:
         """Fetch contributors for a repository."""
-        data = await self._request("GET", f"/repos/{owner}/{repo}/contributors")
-        return [
-            self._convert_to_model(contributor, ContributorInfo) for contributor in data
-        ]
+        if self._use_rust:
+            try:
+                contributors = await self._client.fetch_contributors(owner, repo)
+                return contributors
+            except Exception as e:
+                self._handle_error(e)
+        else:
+            data = await self._request("GET", f"/repos/{owner}/{repo}/contributors")
+            return [
+                self._convert_to_model(contributor, ContributorInfo) for contributor in data
+            ]
 
     async def fetch_branches(self, owner: str, repo: str) -> List[BranchInfo]:
         """Fetch branches for a repository."""
-        data = await self._request("GET", f"/repos/{owner}/{repo}/branches")
-        return [self._convert_to_model(branch, BranchInfo) for branch in data]
+        if self._use_rust:
+            try:
+                branches = await self._client.fetch_branches(owner, repo)
+                return branches
+            except Exception as e:
+                self._handle_error(e)
+        else:
+            data = await self._request("GET", f"/repos/{owner}/{repo}/branches")
+            return [self._convert_to_model(branch, BranchInfo) for branch in data]
 
     async def validate_credentials(self) -> bool:
         """Check if the current token is valid."""
-        try:
-            await self.fetch_user_info()
-            return True
-        except AuthError:
-            return False
-        except Exception:
-            raise  # Re-raise other exceptions
+        if self._use_rust:
+            try:
+                is_valid = await self._client.validate_credentials()
+                return is_valid
+            except Exception as e:
+                self._handle_error(e)
+        else:
+            try:
+                await self.fetch_user_info()
+                return True
+            except AuthError:
+                return False
+            except Exception:
+                raise  # Re-raise other exceptions

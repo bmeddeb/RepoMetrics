@@ -1,12 +1,21 @@
 """
-Git provider API clients for GitHub, GitLab, and BitBucket.
+GitFleet Provider API Clients
+
+This package contains API clients for various Git hosting providers:
+- GitHub
+- GitLab
+- BitBucket
+
+These clients allow you to interact with repository information, 
+user data, and other provider-specific features.
 """
 
-from GitFleet.providers.base import GitProviderClient, ProviderType
-from GitFleet.providers.github import (AuthError, GitHubClient, GitHubError,
-                                       RateLimitError)
-from GitFleet.providers.token_manager import (TokenInfo, TokenManager,
-                                              TokenStatus)
+from .base import GitProviderClient, ProviderType
+from .github import (AuthError, GitHubClient, GitHubError, RateLimitError)
+# These imports will be uncommented as we implement them
+# from .gitlab import GitLabClient
+# from .bitbucket import BitBucketClient
+from .token_manager import (TokenInfo, TokenManager, TokenStatus)
 
 __all__ = [
     # Base classes
