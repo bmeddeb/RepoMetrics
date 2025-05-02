@@ -32,11 +32,21 @@ jobs:
             git remote add origin $REPO_URL
           fi
           
-          # Fetch the code with full history (equivalent to fetch-depth: 0)
-          git fetch --unshallow origin || git fetch origin
+          # Fetch the code with full history for workflow_dispatch
+          git fetch origin || true
           
-          # Checkout the specific ref that triggered the workflow
-          git checkout -f "$GITHUB_SHA"
+          # For workflow_dispatch, we need to detect the current branch
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            # Get default branch or use main
+            DEFAULT_BRANCH=$(git remote show origin | grep "HEAD branch" | sed 's/.*: //')
+            DEFAULT_BRANCH=${DEFAULT_BRANCH:-main}
+            
+            echo "Running workflow_dispatch. Using branch: $DEFAULT_BRANCH"
+            git checkout -f $DEFAULT_BRANCH || git checkout -f main || git checkout -f master
+          else
+            # Normal checkout for push events
+            git checkout -f "$GITHUB_SHA"
+          fi
           
           # Get all tags
           git fetch --tags
@@ -69,6 +79,15 @@ jobs:
       - name: Extract version
         id: version
         run: |
+          # Debug - show working directory and list files
+          pwd
+          ls -la
+          
+          if [ ! -f "pyproject.toml" ]; then
+            echo "Error: pyproject.toml not found in current directory"
+            exit 1
+          fi
+          
           VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $VERSION"
@@ -90,6 +109,11 @@ jobs:
         id: check
         run: |
           VERSION=${{ steps.version.outputs.version }}
+          if [ -z "$VERSION" ]; then
+            echo "Error: Version is empty. Check the previous steps."
+            exit 1
+          fi
+          
           TAG="v$VERSION"
           echo "Checking if tag $TAG exists..."
           
