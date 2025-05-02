@@ -34,7 +34,7 @@ pandas = [
     "pandas>=2.0.0",  # For data analysis
 ]
 pydantic = [
-    "pydantic>=2.0.0",  # For model validation (future use)
+    "pydantic>=2.0.0",  # For model validation and serialization
 ]
 dev = [
     "black>=22.1.0",

@@ -7,13 +7,20 @@ import json
 from dataclasses import asdict, is_dataclass
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union, cast
 
+try:
+    from pydantic import BaseModel
+except ImportError:
+    # Define a dummy BaseModel class if pydantic is not installed
+    class BaseModel:
+        pass
+
 T = TypeVar("T")
 
 
 def to_dict(obj: Any) -> Dict[str, Any]:
     """Convert an object to a dictionary.
 
-    Handles dataclasses, objects with __dict__, and primitive types.
+    Handles Pydantic models, dataclasses, objects with __dict__, and primitive types.
 
     Args:
         obj: The object to convert
@@ -21,7 +28,9 @@ def to_dict(obj: Any) -> Dict[str, Any]:
     Returns:
         Dictionary representation of the object
     """
-    if is_dataclass(obj):
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    elif is_dataclass(obj):
         return asdict(obj)
     elif hasattr(obj, "__dict__"):
         return obj.__dict__
@@ -39,12 +48,17 @@ def to_json(obj: Any, indent: Optional[int] = None) -> str:
     Returns:
         JSON string representation of the object
     """
+    # Use Pydantic's built-in JSON serialization for Pydantic models
+    if isinstance(obj, BaseModel):
+        return obj.model_dump_json(indent=indent)
 
     def default_serializer(o: Any) -> Any:
         if isinstance(o, datetime.datetime):
             return o.isoformat()
         elif isinstance(o, datetime.date):
             return o.isoformat()
+        elif isinstance(o, BaseModel):
+            return o.model_dump()
         elif is_dataclass(o):
             return asdict(o)
         elif hasattr(o, "__dict__"):
@@ -56,12 +70,12 @@ def to_json(obj: Any, indent: Optional[int] = None) -> str:
 
 
 def to_dataframe(
-    data: Union[List[Dict[str, Any]], Dict[str, Any], List[Any]],
+    data: Union[List[Dict[str, Any]], Dict[str, Any], List[Any], BaseModel, List[BaseModel]],
 ) -> "pandas.DataFrame":
     """Convert data to a pandas DataFrame.
 
     Args:
-        data: The data to convert
+        data: The data to convert. Can be Pydantic models, dataclasses, or other types.
 
     Returns:
         pandas DataFrame
@@ -79,12 +93,21 @@ def to_dataframe(
 
     # Handle single object case
     if not isinstance(data, list):
-        data = [data]
+        if isinstance(data, BaseModel):
+            data = [data.model_dump()]
+        else:
+            data = [data]
+    else:
+        # Handle list of Pydantic models
+        if data and isinstance(data[0], BaseModel):
+            data = [item.model_dump() for item in data]
 
     # Convert dataclass instances to dicts
     converted_data = []
     for item in data:
-        if is_dataclass(item):
+        if isinstance(item, BaseModel):
+            converted_data.append(item.model_dump())
+        elif is_dataclass(item):
             converted_data.append(asdict(item))
         elif hasattr(item, "__dict__"):
             converted_data.append(item.__dict__)

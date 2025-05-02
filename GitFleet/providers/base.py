@@ -5,92 +5,14 @@ This module provides the base class for all Git provider API clients.
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Dict, List, Optional, Any, Union
 import asyncio
-from dataclasses import dataclass
+from typing import Dict, List, Optional, Any, Union
 
-
-class ProviderType(str, Enum):
-    """Enumeration of supported Git provider types."""
-    GITHUB = "github"
-    GITLAB = "gitlab"
-    BITBUCKET = "bitbucket"
-
-@dataclass
-class RepoInfo:
-    """Common repository information structure."""
-    name: str
-    full_name: str
-    clone_url: str
-    description: Optional[str]
-    default_branch: str
-    created_at: str
-    updated_at: str
-    language: Optional[str]
-    fork: bool
-    forks_count: int
-    stargazers_count: Optional[int]
-    provider_type: ProviderType
-    visibility: str
-    owner: Dict[str, Any]
-    # Store raw provider data for advanced use cases
-    raw_data: Optional[Dict[str, Any]] = None
-
-
-@dataclass
-class UserInfo:
-    """User information structure."""
-    id: str
-    login: str
-    name: Optional[str]
-    email: Optional[str]
-    avatar_url: Optional[str]
-    provider_type: ProviderType
-    raw_data: Optional[Dict[str, Any]] = None
-
-
-@dataclass
-class RateLimitInfo:
-    """Rate limit information structure."""
-    limit: int
-    remaining: int
-    reset_time: int
-    used: int
-    provider_type: ProviderType
-
-
-@dataclass
-class RepoDetails(RepoInfo):
-    """Detailed repository information structure."""
-    topics: List[str]
-    license: Optional[str]
-    homepage: Optional[str]
-    has_wiki: bool
-    has_issues: bool
-    has_projects: bool
-    archived: bool
-    pushed_at: Optional[str]
-    size: int
-
-
-@dataclass
-class ContributorInfo:
-    """Contributor information structure."""
-    login: str
-    id: str
-    avatar_url: Optional[str]
-    contributions: int
-    provider_type: ProviderType
-
-
-@dataclass
-class BranchInfo:
-    """Branch information structure."""
-    name: str
-    commit_sha: str
-    protected: bool
-    provider_type: ProviderType
+# Import models from the models package
+from ..models.common import (
+    ProviderType, RepoInfo, UserInfo, RateLimitInfo, 
+    RepoDetails, ContributorInfo, BranchInfo
+)
 
 
 class ProviderError(Exception):
@@ -265,17 +187,6 @@ class GitProviderClient(ABC):
                 "Install it with 'pip install pandas'."
             )
         
-        # Convert single object to list
-        if not isinstance(data, list):
-            data = [data]
-        
-        # Handle empty list
-        if not data:
-            return pd.DataFrame()
-        
-        # Convert dataclasses to dicts if needed
-        import dataclasses
-        if dataclasses.is_dataclass(data[0]):
-            data = [dataclasses.asdict(item) for item in data]
-        
-        return pd.DataFrame(data)
+        # Use our utility function from converters module to handle Pydantic models properly
+        from ..utils.converters import to_dataframe
+        return to_dataframe(data)

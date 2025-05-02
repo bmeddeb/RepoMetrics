@@ -28,14 +28,26 @@ except ImportError:
 from GitFleet.providers.base import ProviderType
 
 
+from pydantic import SecretStr
+from pydantic.dataclasses import dataclass
+
 @dataclass
 class CredentialEntry:
     """Represents a stored credential for a Git provider."""
 
     provider: ProviderType
-    token: str
+    token: str  # Still stored as a string for compatibility
     username: Optional[str] = None
     host: Optional[str] = None
+    
+    @property
+    def secret_token(self) -> SecretStr:
+        """Get the token as a SecretStr for secure handling."""
+        return SecretStr(self.token)
+        
+    def get_token(self) -> str:
+        """Get the raw token string (for compatibility)."""
+        return self.token
 
 
 def derive_key_from_password(password: str, salt: Optional[bytes] = None) -> Tuple[bytes, bytes]:

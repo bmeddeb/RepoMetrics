@@ -4,20 +4,22 @@ Token management system for Git provider API clients with rate limit awareness.
 
 import asyncio
 import time
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
+
+from pydantic import Field, SecretStr
+from pydantic.dataclasses import dataclass
 
 from .base import ProviderType
 
 
-@dataclass
+@dataclass(frozen=False)  # Need mutable fields for status updates
 class TokenStatus:
     """Represents the status of an API token."""
 
     is_valid: bool
     remaining_calls: int
     reset_time: Optional[int] = None
-    last_used: Optional[float] = None
+    last_used: Optional[float] = Field(default_factory=lambda: time.time())
 
     @property
     def is_rate_limited(self) -> bool:
@@ -32,14 +34,20 @@ class TokenStatus:
         return self.is_valid and not self.is_rate_limited
 
 
-@dataclass
+@dataclass(frozen=False)  # Need mutable status field
 class TokenInfo:
     """Information about an API token."""
 
-    token: str
+    token: str  # Keep as plain string for compatibility
     provider: ProviderType
     username: Optional[str] = None
     status: Optional[TokenStatus] = None
+    
+    # SecretToken available for secure handling when needed
+    @property
+    def secret_token(self) -> SecretStr:
+        """Get a secure version of the token."""
+        return SecretStr(self.token)
 
     def __post_init__(self):
         if self.status is None:

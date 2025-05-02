@@ -9,17 +9,28 @@ This example demonstrates how to use the GitFleet GitHub API client to:
 4. List contributors and branches
 5. Convert the results to pandas DataFrames
 6. Check rate limits
+7. Use Pydantic model features for serialization
 
 Optional dependencies:
 - pandas: Required for DataFrame conversion (pip install pandas)
   Install with: pip install "gitfleet[pandas]"
+- pydantic: Required for model validation (pip install pydantic)
+  Install with: pip install "gitfleet[pydantic]"
 """
 
 import os
+import sys
 import asyncio
+import json
 from pprint import pprint
+from datetime import datetime
 
-from GitFleet import GitHubClient, to_dataframe
+# Add the parent directory to the Python path so we can import GitFleet modules directly
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Direct imports from the project modules
+from GitFleet.providers.github import GitHubClient
+from GitFleet.utils.converters import to_dataframe, to_json
 
 
 async def main():
@@ -108,6 +119,35 @@ async def main():
             print(df[["name", "full_name", "stargazers_count"]].head())
         except ImportError:
             print("  pandas not installed. Install with: pip install pandas")
+            
+        # Demonstrate Pydantic model features
+        print("\n🔄 Pydantic Model Features:")
+        if repos:
+            repo = repos[0]
+            
+            # Use model_dump() to convert to dict
+            print("  Model to dict:")
+            repo_dict = repo.model_dump()
+            print(f"  ↳ {list(repo_dict.keys())[:5]}...")
+            
+            # Use model_dump_json() to convert directly to JSON
+            print("\n  Model to JSON:")
+            repo_json = repo.model_dump_json(indent=2)
+            print(f"  ↳ First 100 chars: {repo_json[:100]}...")
+            
+            # Use datetime conversion methods
+            if repo.created_at:
+                print("\n  Date/time helpers:")
+                created_dt = repo.created_datetime()
+                if created_dt:
+                    print(f"  ↳ Created: {created_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+                    days_since = (datetime.now() - created_dt).days
+                    print(f"  ↳ Age: {days_since} days")
+            
+            # Show serialization with utility functions
+            print("\n  Using to_json utility:")
+            json_str = to_json(repo, indent=None)
+            print(f"  ↳ {json_str[:100]}...")
 
 
 if __name__ == "__main__":

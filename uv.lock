@@ -32,24 +32,6 @@ wheels = [
 ]
 
 [[package]]
-name = "argparse"
-version = "1.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/18/dd/e617cfc3f6210ae183374cd9f6a26b20514bbb5a792af97949c5aacddf0f/argparse-1.4.0.tar.gz", hash = "sha256:62b089a55be1d8949cd2bc7e0df0bddb9e028faefc8c32038cc84862aefdd6e4", size = 70508 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/94/3af39d34be01a24a6e65433d19e107099374224905f1e0cc6bbe1fd22a2f/argparse-1.4.0-py2.py3-none-any.whl", hash = "sha256:c31647edb69fd3d465a847ea3157d37bed1f95f19760b11a47aa91c04b666314", size = 23000 },
-]
-
-[[package]]
-name = "asyncio"
-version = "3.4.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/da/54/054bafaf2c0fb8473d423743e191fcdf49b2c1fd5e9af3524efbe097bafd/asyncio-3.4.3.tar.gz", hash = "sha256:83360ff8bc97980e4ff25c964c7bd3923d333d177aa4f7fb736b019f26c7cb41", size = 204411 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/74/07679c5b9f98a7cb0fc147b1ef1cc1853bc07a4eb9cb5731e24732c5f773/asyncio-3.4.3-py3-none-any.whl", hash = "sha256:c4d18b22701821de07bd6aea8b53d21449ec0ec5680645e5317062ea21817d2d", size = 101767 },
-]
-
-[[package]]
 name = "black"
 version = "25.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -226,49 +208,55 @@ wheels = [
 
 [[package]]
 name = "gitfleet"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
-    { name = "argparse" },
-    { name = "asyncio" },
-    { name = "black" },
-    { name = "cryptography" },
     { name = "httpx" },
-    { name = "isort" },
-    { name = "maturin" },
-    { name = "pydantic" },
-    { name = "pytest" },
 ]
 
 [package.optional-dependencies]
 all = [
-    { name = "httpx" },
+    { name = "cryptography" },
+    { name = "pandas" },
+    { name = "pydantic" },
+]
+crypto = [
+    { name = "cryptography" },
+]
+dev = [
+    { name = "black" },
+    { name = "isort" },
+    { name = "maturin" },
+    { name = "pytest" },
+]
+examples = [
+    { name = "cryptography" },
     { name = "pandas" },
 ]
 pandas = [
     { name = "pandas" },
 ]
-providers = [
-    { name = "httpx" },
+pydantic = [
+    { name = "pydantic" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "argparse", specifier = ">=1.4.0" },
-    { name = "asyncio", specifier = ">=3.4.3" },
-    { name = "black", specifier = ">=22.1.0" },
-    { name = "cryptography", specifier = ">=44.0.2" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=22.1.0" },
+    { name = "cryptography", marker = "extra == 'all'", specifier = ">=44.0.2" },
+    { name = "cryptography", marker = "extra == 'crypto'", specifier = ">=44.0.2" },
+    { name = "cryptography", marker = "extra == 'examples'", specifier = ">=44.0.2" },
     { name = "httpx", specifier = ">=0.24.0" },
-    { name = "httpx", marker = "extra == 'all'", specifier = ">=0.24.0" },
-    { name = "httpx", marker = "extra == 'providers'", specifier = ">=0.24.0" },
-    { name = "isort", specifier = ">=5.10.1" },
-    { name = "maturin", specifier = ">=1.8.3" },
+    { name = "isort", marker = "extra == 'dev'", specifier = ">=5.10.1" },
+    { name = "maturin", marker = "extra == 'dev'", specifier = ">=1.8.3" },
     { name = "pandas", marker = "extra == 'all'", specifier = ">=2.0.0" },
+    { name = "pandas", marker = "extra == 'examples'", specifier = ">=2.0.0" },
     { name = "pandas", marker = "extra == 'pandas'", specifier = ">=2.0.0" },
-    { name = "pydantic", specifier = ">=2.11.4" },
-    { name = "pytest", specifier = ">=6.0.0" },
+    { name = "pydantic", marker = "extra == 'all'", specifier = ">=2.0.0" },
+    { name = "pydantic", marker = "extra == 'pydantic'", specifier = ">=2.0.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=6.0.0" },
 ]
-provides-extras = ["providers", "pandas", "all"]
+provides-extras = ["crypto", "pandas", "pydantic", "dev", "examples", "all"]
 
 [[package]]
 name = "h11"

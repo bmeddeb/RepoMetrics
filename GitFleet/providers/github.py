@@ -12,10 +12,13 @@ from typing import Any, Dict, List, Optional, Type, TypeVar, Union, cast
 
 import httpx
 
-from .base import (
-    GitProviderClient, ProviderType, RepoInfo, UserInfo, 
-    RateLimitInfo, RepoDetails, ContributorInfo, BranchInfo,
-    ProviderError, RateLimitError, AuthError
+# Import provider base and error classes
+from .base import GitProviderClient, ProviderError, RateLimitError, AuthError
+
+# Import models from common module
+from ..models.common import (
+    ProviderType, RepoInfo, UserInfo, RateLimitInfo, 
+    RepoDetails, ContributorInfo, BranchInfo
 )
 
 # Import from token manager
@@ -145,95 +148,34 @@ class GitHubClient(GitProviderClient):
     
     def _convert_to_model(self, data: Dict[str, Any], model_class: Type[T]) -> T:
         """Convert API response data to a model instance for the Python implementation."""
-        # For RepoInfo, we need to handle the owner nested object
+        # Special processing for nested structures before validation
         if model_class == RepoInfo and "owner" in data and data["owner"]:
-            owner_data = data["owner"]
-            owner = UserInfo(
-                id=str(owner_data.get("id", "")),
-                login=owner_data.get("login", ""),
-                name=owner_data.get("name"),
-                email=owner_data.get("email"),
-                avatar_url=owner_data.get("avatar_url"),
-                provider_type=ProviderType.GITHUB,
-                raw_data=owner_data,
-            )
-
-            # Create the RepoInfo instance with owner
-            return cast(
-                T,
-                RepoInfo(
-                    name=data["name"],
-                    full_name=data["full_name"],
-                    clone_url=data["clone_url"],
-                    description=data.get("description"),
-                    default_branch=data.get("default_branch", "main"),
-                    created_at=data.get("created_at"),
-                    updated_at=data.get("updated_at"),
-                    language=data.get("language"),
-                    fork=data.get("fork", False),
-                    forks_count=data.get("forks_count", 0),
-                    stargazers_count=data.get("stargazers_count"),
-                    visibility=data.get("visibility", "public"),
-                    provider_type=ProviderType.GITHUB,
-                    owner=owner,
-                    raw_data=data,
-                ),
-            )
-
-        # For UserInfo
-        elif model_class == UserInfo:
-            return cast(
-                T,
-                UserInfo(
-                    id=str(data.get("id", "")),
-                    login=data["login"],
-                    name=data.get("name"),
-                    email=data.get("email"),
-                    avatar_url=data.get("avatar_url"),
-                    provider_type=ProviderType.GITHUB,
-                    raw_data=data,
-                ),
-            )
-
-        # For RateLimitInfo
-        elif model_class == RateLimitInfo:
-            return cast(
-                T,
-                RateLimitInfo(
-                    limit=data["limit"],
-                    remaining=data["remaining"],
-                    reset_time=data["reset"],
-                    used=data["used"],
-                    provider_type=ProviderType.GITHUB,
-                ),
-            )
-
-        # For BranchInfo
-        elif model_class == BranchInfo:
-            return cast(
-                T,
-                BranchInfo(
-                    name=data["name"],
-                    commit_sha=data["commit"]["sha"],
-                    protected=data.get("protected", False),
-                    provider_type=ProviderType.GITHUB,
-                ),
-            )
-
-        # For ContributorInfo
-        elif model_class == ContributorInfo:
-            return cast(
-                T,
-                ContributorInfo(
-                    login=data["login"],
-                    id=str(data.get("id", "")),
-                    avatar_url=data.get("avatar_url"),
-                    contributions=data["contributions"],
-                    provider_type=ProviderType.GITHUB,
-                ),
-            )
-
-        raise ValueError(f"Unsupported model class: {model_class}")
+            # Convert the id to string if it's not already
+            if "id" in data["owner"] and not isinstance(data["owner"]["id"], str):
+                data["owner"]["id"] = str(data["owner"]["id"])
+        
+        # Convert id to string for UserInfo and ContributorInfo
+        if (model_class in (UserInfo, ContributorInfo) and 
+            "id" in data and not isinstance(data["id"], str)):
+            # Convert the id to string if it's not already
+            data["id"] = str(data["id"])
+            
+        # Handle special case for RateLimitInfo where reset is named differently
+        if model_class == RateLimitInfo and "reset" in data:
+            data["reset_time"] = data.pop("reset")
+            
+        # Handle special case for BranchInfo where commit SHA is nested
+        if model_class == BranchInfo and "commit" in data and isinstance(data["commit"], dict):
+            data["commit_sha"] = data["commit"]["sha"]
+            
+        # Add provider type to data
+        data["provider_type"] = ProviderType.GITHUB
+            
+        # Use Pydantic's model_validate for validation and conversion
+        try:
+            return cast(T, model_class.model_validate(data))
+        except Exception as e:
+            raise ValueError(f"Error validating {model_class.__name__}: {str(e)}")
     
     def _handle_error(self, error: Exception) -> None:
         """Handle errors from the Rust client.
@@ -304,7 +246,8 @@ class GitHubClient(GitProviderClient):
                 self._handle_error(e)
         else:
             data = await self._request("GET", f"/repos/{owner}/{repo}")
-            return self._convert_to_model(data, RepoInfo)
+            # Convert to RepoDetails instead of RepoInfo to include all detailed fields
+            return RepoDetails.model_validate(data)
 
     async def fetch_contributors(self, owner: str, repo: str) -> List[ContributorInfo]:
         """Fetch contributors for a repository."""
@@ -316,9 +259,7 @@ class GitHubClient(GitProviderClient):
                 self._handle_error(e)
         else:
             data = await self._request("GET", f"/repos/{owner}/{repo}/contributors")
-            return [
-                self._convert_to_model(contributor, ContributorInfo) for contributor in data
-            ]
+            return [self._convert_to_model(contributor, ContributorInfo) for contributor in data]
 
     async def fetch_branches(self, owner: str, repo: str) -> List[BranchInfo]:
         """Fetch branches for a repository."""

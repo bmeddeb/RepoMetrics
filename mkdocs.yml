@@ -42,7 +42,8 @@ nav:
   - Getting Started:
       - Installation: installation.md
       - Migration Guide: migration-guide.md
-  - Core API:
+  - API Reference:
+      - Complete API: GitFleetAPI.md
       - Repository Manager: RepoManager.md
       - Clone Status: CloneStatus.md
       - Clone Task: CloneTask.md
@@ -53,3 +54,4 @@ nav:
       - Implementation: providers/implementation.md
   - Advanced:
       - Token Management: token-management.md
+      - Pydantic Integration: pydantic-integration.md

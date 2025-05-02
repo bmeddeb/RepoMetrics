@@ -1,15 +1,42 @@
 """
-Data models for Git provider API responses.
+Data models for Git provider API responses and repository management.
 """
 
 from GitFleet.models.common import (BranchInfo, ContributorInfo, ProviderType,
-                                    RateLimitInfo, RepoInfo, UserInfo)
+                                   RateLimitInfo, RepoDetails, RepoInfo, UserInfo)
 
-__all__ = [
-    "ProviderType",
-    "UserInfo",
-    "RepoInfo",
-    "RateLimitInfo",
-    "BranchInfo",
-    "ContributorInfo",
-]
+# Try to import the repository management models if the Rust extension is available
+try:
+    from GitFleet.models.repo import (
+        CloneStatus, CloneTask, CloneStatusType, RepoManager,
+        clone_status_to_pydantic, clone_task_to_pydantic
+    )
+    __all__ = [
+        # Provider models
+        "ProviderType",
+        "UserInfo", 
+        "RepoInfo",
+        "RepoDetails",
+        "RateLimitInfo",
+        "BranchInfo",
+        "ContributorInfo",
+        
+        # Repository management models
+        "CloneStatus",
+        "CloneTask",
+        "CloneStatusType",
+        "RepoManager",
+        "clone_status_to_pydantic",
+        "clone_task_to_pydantic",
+    ]
+except ImportError:
+    # If the Rust extension is not available, only export the provider models
+    __all__ = [
+        "ProviderType",
+        "UserInfo",
+        "RepoInfo",
+        "RepoDetails",
+        "RateLimitInfo",
+        "BranchInfo",
+        "ContributorInfo",
+    ]
