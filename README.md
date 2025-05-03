@@ -3,21 +3,22 @@
 **High-performance Git repository analysis and management in Python, powered by Rust**
 
 [![PyPI version](https://img.shields.io/pypi/v/gitfleet)](https://pypi.org/project/gitfleet/)
-[![License](https://img.shields.io/github/license/your-org/gitfleet)](LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/your-org/gitfleet/ci.yml)](https://github.com/your-org/gitfleet/actions)
+[![License](https://img.shields.io/github/license/bmeddeb/gitfleet)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/bmeddeb/gitfleet/ci.yml)](https://github.com/bmeddeb/gitfleet/actions)
+[![Documentation](https://img.shields.io/badge/docs-available-brightgreen)](https://bmeddeb.github.io/GitFleet/)
 
 ---
 
 ## ⚡ Overview
 
-**GitFleet** is a high-performance Python library built in Rust for asynchronous Git repository analysis at scale.
+**GitFleet** is a high-performance Python library built in Rust for asynchronous Git repository analysis at scale. It combines the speed and memory efficiency of Rust with the ease of use of Python's async/await syntax.
 
 It supports bulk operations like:
 
-- Parallel `git blame` across many files
-- Async cloning of hundreds of repositories
-- GitHub, GitLab, and GitBucket integration
-- API token rotation and rate limit monitoring
+- Parallel `git blame` across many files (10-50x faster than pure Python)
+- Async cloning of hundreds of repositories with progress monitoring
+- GitHub, GitLab, and GitBucket integration with native API clients
+- API token rotation and rate limit monitoring to prevent 429 errors
 - Real-time progress tracking for long-running tasks
 
 Ideal for:
@@ -26,6 +27,7 @@ Ideal for:
 - Research in software engineering and code evolution
 - DevOps and CI insights at scale
 - Custom git analytics platforms
+- Any application requiring efficient handling of multiple Git repositories
 
 ---
 
@@ -40,6 +42,16 @@ Ideal for:
 
 ---
 
+## 📚 Documentation
+
+Visit our [comprehensive documentation](https://bmeddeb.github.io/GitFleet/) for:
+- Detailed API reference
+- Usage examples
+- Provider integrations
+- Advanced configuration
+
+---
+
 ## 📦 Installation
 
 ```bash
@@ -47,6 +59,7 @@ pip install gitfleet
 ```
 
 > Requires Python 3.8+ and a Rust toolchain for building native extensions.
+> Pre-built wheels are available for most common platforms.
 
 ---
 
@@ -106,9 +119,9 @@ GitFleet is designed to interoperate with:
 We welcome contributions! To get started:
 
 ```bash
-git clone https://github.com/your-org/gitfleet
+git clone https://github.com/bmeddeb/gitfleet
 cd gitfleet
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 Run tests with:
@@ -116,6 +129,8 @@ Run tests with:
 ```bash
 pytest
 ```
+
+For more details on contributing, see our [development documentation](https://bmeddeb.github.io/GitFleet/development/architecture/).
 
 ---
 
