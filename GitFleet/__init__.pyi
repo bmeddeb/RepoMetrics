@@ -2,7 +2,7 @@
 Type stubs for GitFleet package.
 """
 
-from typing import Any, Awaitable, Dict, List, Optional, Union
+from typing import Any, Awaitable, Dict, List, Optional, Union, TypeVar, Type
 
 # Import from core Rust bindings
 class RustCloneStatus:
@@ -30,15 +30,33 @@ class RepoManager:
     ) -> Awaitable[Union[List[Dict[str, Any]], str]]: ...
     def cleanup(self) -> Dict[str, Union[bool, str]]: ...
 
-# Pydantic models and converters
-from GitFleet.models.repo import (
-    CloneStatusType,
-    PydanticCloneStatus,
-    PydanticCloneTask,
-    to_pydantic_status,
-    to_pydantic_task,
-    convert_clone_tasks,
-)
+# Pydantic models
+class CloneStatusType:
+    QUEUED: str
+    CLONING: str
+    COMPLETED: str
+    FAILED: str
+
+class PydanticCloneStatus:
+    status_type: str
+    progress: Optional[int]
+    error: Optional[str]
+    
+    def model_dump(self) -> Dict[str, Any]: ...
+    def model_dump_json(self, **kwargs: Any) -> str: ...
+
+class PydanticCloneTask:
+    url: str
+    status: PydanticCloneStatus
+    temp_dir: Optional[str]
+    
+    def model_dump(self) -> Dict[str, Any]: ...
+    def model_dump_json(self, **kwargs: Any) -> str: ...
+
+# Conversion functions
+def to_pydantic_status(rust_status: RustCloneStatus) -> PydanticCloneStatus: ...
+def to_pydantic_task(rust_task: RustCloneTask) -> PydanticCloneTask: ...
+def convert_clone_tasks(rust_tasks: Dict[str, RustCloneTask]) -> Dict[str, PydanticCloneTask]: ...
 
 # Import provider clients
 from GitFleet.providers import (
