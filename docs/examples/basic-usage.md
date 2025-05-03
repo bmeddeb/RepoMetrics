@@ -192,9 +192,14 @@ async def main():
         # Show the 5 most recent commits
         print("\nRecent commits:")
         for commit in commits[:5]:
+            # Convert timestamp to a human-readable date
+            from datetime import datetime
+            timestamp = commit['author_timestamp']
+            date = datetime.fromtimestamp(timestamp)
+            
             print(f"Commit: {commit['sha'][:7]}")
             print(f"Author: {commit['author_name']}")
-            print(f"Date: {commit['author_timestamp']}")
+            print(f"Date: {date.strftime('%Y-%m-%d %H:%M:%S')}")
             message_summary = commit["message"].split("\n")[0][:50]
             print(f"Message: {message_summary}...")
             print(f"Changes: +{commit['additions']} -{commit['deletions']}")

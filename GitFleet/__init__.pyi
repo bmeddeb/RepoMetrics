@@ -24,10 +24,51 @@ class RepoManager:
     def clone(self, url: str) -> Awaitable[None]: ...
     def bulk_blame(
         self, repo_path: str, file_paths: List[str]
-    ) -> Awaitable[Dict[str, Union[List[Dict[str, Any]], str]]]: ...
+    ) -> Awaitable[Dict[str, Union[List[Dict[str, Any]], str]]]: 
+        """Execute blame on multiple files at once.
+        
+        Returns a dictionary where:
+        - Keys are file paths
+        - Values are either:
+          - Lists of line blame information with fields:
+            - commit_id: str
+            - author_name: str
+            - author_email: str
+            - orig_line_no: int
+            - final_line_no: int
+            - line_content: str
+          - Error message strings
+        
+        Note: Blame line information does NOT include timestamps.
+        """
+        ...
     def extract_commits(
         self, repo_path: str
-    ) -> Awaitable[Union[List[Dict[str, Any]], str]]: ...
+    ) -> Awaitable[Union[List[Dict[str, Any]], str]]: 
+        """Extract commit history from a repository.
+        
+        Returns either:
+        - A list of commit dictionaries with fields:
+          - sha: str
+          - repo_name: str
+          - message: str
+          - author_name: str
+          - author_email: str
+          - author_timestamp: int (Unix epoch in seconds)
+          - author_offset: int
+          - committer_name: str
+          - committer_email: str
+          - committer_timestamp: int (Unix epoch in seconds)
+          - committer_offset: int
+          - additions: int
+          - deletions: int
+          - is_merge: bool
+        - Error message string
+        
+        Note: Timestamps are in Unix epoch format (seconds since 1970-01-01) 
+        and need to be converted to datetime objects for human-readable format.
+        """
+        ...
     def cleanup(self) -> Dict[str, Union[bool, str]]: ...
 
 # Pydantic models

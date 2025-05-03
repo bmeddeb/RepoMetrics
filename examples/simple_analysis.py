@@ -42,8 +42,8 @@ GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "your-username")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "your-personal-access-token")
 
 # Target repository - Flask is a well-known Python web framework with a stable structure
-REPO_URL = "https://github.com/pallets/flask.git"
-TARGET_DIR = "src/flask"  # Known directory for blame analysis
+REPO_URL = "https://github.com/bmeddeb/SER402-Team3.git"
+TARGET_DIR = "plots"  # Known directory for blame analysis
 
 
 class RepositoryAnalyzer:
@@ -288,9 +288,9 @@ class RepositoryAnalyzer:
             # Convert to DataFrame for better analysis
             df = pd.DataFrame(self.commit_history)
             
-            # Convert timestamp strings to datetime objects
-            df['author_timestamp'] = pd.to_datetime(df['author_timestamp'])
-            df['committer_timestamp'] = pd.to_datetime(df['committer_timestamp'])
+            # Convert Unix timestamps (seconds since epoch) to datetime objects
+            df['author_timestamp'] = pd.to_datetime(df['author_timestamp'], unit='s')
+            df['committer_timestamp'] = pd.to_datetime(df['committer_timestamp'], unit='s')
             
             # Add day and month columns for time series analysis
             df['date'] = df['author_timestamp'].dt.date
@@ -299,6 +299,11 @@ class RepositoryAnalyzer:
             
             # Display basic statistics
             self.log("\nCommit Statistics:")
+            
+            # Debug raw timestamps
+            if len(self.commit_history) > 0:
+                self.log(f"Debug: First commit raw author_timestamp: {self.commit_history[0]['author_timestamp']}")
+                self.log(f"Debug: First commit converted timestamp: {df['author_timestamp'].iloc[0]}")
             
             # Time range
             self.log(f"Date Range: {df['date'].min()} to {df['date'].max()}")
@@ -326,9 +331,11 @@ class RepositoryAnalyzer:
             # Basic non-pandas analysis
             self.log("\nRecent Commits:")
             for commit in self.commit_history[:5]:
+                # Convert Unix timestamp to human-readable date
+                timestamp = datetime.fromtimestamp(commit['author_timestamp'])
                 self.log(f"Commit: {commit['sha'][:8]}")
                 self.log(f"Author: {commit['author_name']}")
-                self.log(f"Date: {commit['author_timestamp']}")
+                self.log(f"Date: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
                 message = commit['message'].split('\n')[0][:50]
                 self.log(f"Message: {message}...")
                 self.log(f"Changes: +{commit['additions']} -{commit['deletions']}")
@@ -358,19 +365,18 @@ class RepositoryAnalyzer:
                 for line in blame_lines:
                     blame_row = {
                         'file': file_path,
-                        'line_number': line.get('line_number'),
+                        'line_number': line.get('final_line_no'),  # Correct field name
                         'author': line.get('author_name'),
                         'email': line.get('author_email'),
-                        'timestamp': line.get('author_timestamp'),
-                        'commit': line.get('commit_hash', '')[:8],
+                        'commit': line.get('commit_id', '')[:8],  # Correct field name
                     }
                     all_blame_data.append(blame_row)
             
             # Create DataFrame from all blame data
             blame_df = pd.DataFrame(all_blame_data)
             
-            # Convert timestamp strings to datetime objects
-            blame_df['timestamp'] = pd.to_datetime(blame_df['timestamp'])
+            # No timestamp field in blame data - the Rust library doesn't provide it
+            # We'll analyze without timestamp information
             
             # Summary by file
             file_summary = blame_df.groupby('file').size().sort_values(ascending=False)
@@ -444,6 +450,21 @@ async def main():
     # Extract commit history
     commit_success = await analyzer.extract_commits()
     
+    # Show diagnostic info about a commit if available
+    if analyzer.commit_history and isinstance(analyzer.commit_history, list) and len(analyzer.commit_history) > 0:
+        commit = analyzer.commit_history[0]
+        print(f"Debug: Sample commit data:")
+        print(f"  SHA: {commit.get('sha', '')[:8]}")
+        print(f"  Author: {commit.get('author_name', '')}")
+        print(f"  Raw timestamp: {commit.get('author_timestamp', 'N/A')}")
+        
+        # Convert timestamp to a date
+        import datetime
+        if 'author_timestamp' in commit:
+            timestamp = commit['author_timestamp']
+            date = datetime.datetime.fromtimestamp(timestamp)
+            print(f"  Converted to: {date.strftime('%Y-%m-%d %H:%M:%S')}")
+            
     # Run blame analysis on target directory
     blame_success = await analyzer.run_blame_analysis(TARGET_DIR)
     
