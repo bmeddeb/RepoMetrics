@@ -122,3 +122,26 @@ class TokenManager:
                 if token_info.token == token:
                     token_info.status.is_valid = False
                     break
+                    
+    def get_all_tokens(self, provider: ProviderType) -> List[TokenInfo]:
+        """Get all tokens for a specific provider.
+        
+        Args:
+            provider: The provider type to get tokens for
+            
+        Returns:
+            List of TokenInfo objects for the specified provider
+        """
+        return self.tokens.get(provider, [])
+        
+    def count_available_tokens(self, provider: ProviderType) -> int:
+        """Count the number of available tokens for a provider.
+        
+        Args:
+            provider: The provider type to count tokens for
+            
+        Returns:
+            Number of available (valid and not rate-limited) tokens
+        """
+        return sum(1 for token in self.tokens.get(provider, []) 
+                  if token.status and token.status.is_available)

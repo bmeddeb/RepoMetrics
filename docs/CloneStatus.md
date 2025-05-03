@@ -1,8 +1,15 @@
 # CloneStatus
 
-The `CloneStatus` class represents the current status of a repository cloning operation. It is used to track the progress and outcome of cloning tasks managed by `RepoManager` and is typically accessed as the `status` field of a `CloneTask` object.
+In GitFleet, there are two types of `CloneStatus` objects that represent the status of repository cloning operations:
+
+1. **RustCloneStatus**: The native Rust implementation returned by `RepoManager.fetch_clone_tasks()`
+2. **PydanticCloneStatus**: A Pydantic model version with additional validation and serialization features
+
+Both types provide the same core functionality but serve different use cases.
 
 ## Fields
+
+Both `RustCloneStatus` and `PydanticCloneStatus` share the same fields:
 
 - `status_type` (`str`): The type of status. Possible values are:
   - `'queued'`: The cloning task is waiting to start.
@@ -16,11 +23,11 @@ The `CloneStatus` class represents the current status of a repository cloning op
 
 You will most often encounter `CloneStatus` as part of a `CloneTask` when checking the status of repository cloning operations.
 
-### Example: Checking the Status of a CloneTask
+### Example: Using RustCloneStatus Directly
 
 ```python
 import asyncio
-from RepoMetrics import RepoManager
+from GitFleet import RepoManager
 
 async def main():
     urls = ["https://github.com/owner/repo1.git"]
@@ -28,7 +35,7 @@ async def main():
     await manager.clone_all()
     clone_tasks = await manager.fetch_clone_tasks()
     for url, task in clone_tasks.items():
-        status = task.status
+        status = task.status  # This is a RustCloneStatus object
         print(f"Repo: {url}")
         print(f"  Status: {status.status_type}")
         if status.status_type == "cloning":
@@ -39,8 +46,30 @@ async def main():
 asyncio.run(main())
 ```
 
+### Example: Converting to PydanticCloneStatus
+
+```python
+import asyncio
+from GitFleet import RepoManager, to_pydantic_status
+
+async def main():
+    urls = ["https://github.com/owner/repo1.git"]
+    manager = RepoManager(urls, "username", "token")
+    await manager.clone_all()
+    clone_tasks = await manager.fetch_clone_tasks()
+    for url, task in clone_tasks.items():
+        # Convert RustCloneStatus to PydanticCloneStatus
+        status = to_pydantic_status(task.status)
+        print(f"Repo: {url}")
+        print(f"  Status: {status.status_type}")
+        
+        # Use Pydantic features
+        status_json = status.model_dump_json(indent=2)
+        print(f"  Status JSON: {status_json}")
+
+asyncio.run(main())
+```
+
 ---
 
-The `CloneStatus` class helps you monitor and react to the state of repository cloning operations in your workflow.
-
-_Detailed documentation coming soon._
+The `CloneStatus` objects help you monitor and react to the state of repository cloning operations in your workflow.

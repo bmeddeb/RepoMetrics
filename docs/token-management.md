@@ -49,18 +49,18 @@ async def main():
 asyncio.run(main())
 ```
 
-## Token States
+## Token Status
 
-Each token in the manager has one of the following states:
+Each token in the manager has a `TokenStatus` object that tracks its state:
 
-- **Available**: The token is valid and has API calls remaining
+- **Valid and Available**: The token is valid and has API calls remaining
 - **Rate Limited**: The token has exceeded its rate limit and will become available again after the reset time
 - **Invalid**: The token is invalid (e.g., revoked, expired)
 
 The token manager automatically:
 - Tracks rate limits for all tokens
 - Skips rate-limited tokens until they reset
-- Removes invalid tokens from rotation
+- Marks invalid tokens
 - Uses the least recently used available token
 
 ## Using Multiple Providers
@@ -135,7 +135,9 @@ for i, token_info in enumerate(github_tokens):
         print(f"Token {i+1}: Rate limit not yet fetched")
 ```
 
-## Token Information Class
+## Token Classes
+
+### TokenInfo
 
 The `TokenInfo` class stores information about each token:
 
@@ -143,27 +145,51 @@ The `TokenInfo` class stores information about each token:
 @dataclass
 class TokenInfo:
     token: str                  # The actual token string
-    provider_type: ProviderType # Which provider this token is for
-    status: TokenStatus         # Current status (Available/RateLimited/Invalid)
-    rate_limit: RateLimitInfo   # Current rate limit information
-    username: str               # Optional username associated with token
-    last_used: int              # Timestamp when token was last used
+    provider: ProviderType      # Which provider this token is for
+    username: Optional[str]     # Optional username associated with token
+    status: TokenStatus         # Current status information
+    
+    # Get a secure version of the token
+    @property
+    def secret_token(self) -> SecretStr:
+        return SecretStr(self.token)
 ```
 
-## Token Status Enumeration
+### TokenStatus
 
-The `TokenStatus` enumeration represents the current state of a token:
+The `TokenStatus` class tracks the status of a token:
 
 ```python
-from GitFleet.providers import TokenStatus
+@dataclass
+class TokenStatus:
+    is_valid: bool              # Whether the token is valid
+    remaining_calls: int        # Number of API calls remaining
+    reset_time: Optional[int]   # When rate limit resets (UNIX timestamp)
+    last_used: Optional[float]  # When the token was last used
+    
+    # Useful properties
+    @property
+    def is_rate_limited(self) -> bool:
+        """Check if the token is currently rate limited."""
+        # Returns True if no calls remaining and reset time hasn't passed
+        
+    @property
+    def is_available(self) -> bool:
+        """Check if the token is available for use."""
+        # Returns True if valid and not rate limited
+```
 
+Example of checking token status:
+
+```python
 # Check token status
-if token_info.status == TokenStatus.AVAILABLE:
+if token_info.status.is_available:
     print("Token is available")
-elif token_info.status == TokenStatus.RATE_LIMITED:
-    print(f"Token is rate limited until {token_info.rate_limit.reset_time}")
-elif token_info.status == TokenStatus.INVALID:
+elif token_info.status.is_rate_limited:
+    print(f"Token is rate limited until {time.ctime(token_info.status.reset_time)}")
+elif not token_info.status.is_valid:
     print("Token is invalid or revoked")
+print(f"Remaining calls: {token_info.status.remaining_calls}")
 ```
 
 ## Multiple Tokens Example
@@ -209,11 +235,15 @@ async def main():
     # Check token statuses after operations
     print("\nToken statuses:")
     for i, token_info in enumerate(token_manager.get_all_tokens(ProviderType.GITHUB)):
-        status = "Available"
-        if token_info.status == TokenStatus.RATE_LIMITED:
-            status = f"Rate limited (resets at {token_info.rate_limit.reset_time})"
-        elif token_info.status == TokenStatus.INVALID:
-            status = "Invalid"
+        if token_info.status:
+            if token_info.status.is_rate_limited:
+                status = f"Rate limited (resets at {time.ctime(token_info.status.reset_time)})"
+            elif not token_info.status.is_valid:
+                status = "Invalid"
+            else:
+                status = f"Available ({token_info.status.remaining_calls} calls remaining)"
+        else:
+            status = "Unknown"
             
         print(f"Token {i+1}: {status}")
 

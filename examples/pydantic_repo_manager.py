@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Pydantic-enabled RepoManager Example
+Pydantic Integration Example
 
 This example demonstrates how to use the Pydantic models with the Rust-based RepoManager:
-1. Use the Pydantic wrappers for RepoManager, CloneStatus, and CloneTask
-2. Show serialization and validation of the models
-3. Convert between Rust objects and Pydantic models
+1. Use the Rust RepoManager to perform operations
+2. Convert Rust objects to Pydantic models for validation and serialization
+3. Show Pydantic model features like JSON serialization and validation
 
 Optional dependencies:
 - pydantic: Required for Pydantic models (pip install pydantic)
@@ -22,9 +22,11 @@ from datetime import datetime
 # Add the parent directory to the Python path so we can import GitFleet modules directly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Import the Pydantic-enabled models
-from GitFleet.models.repo import (
-    RepoManager, CloneStatus, CloneTask, CloneStatusType,
+# Import the RepoManager and Pydantic conversion utilities
+from GitFleet import RepoManager
+from GitFleet import (
+    PydanticCloneStatus, PydanticCloneTask, CloneStatusType,
+    to_pydantic_status, to_pydantic_task, convert_clone_tasks
 )
 
 
@@ -43,7 +45,7 @@ async def main():
         repo_url = "https://github.com/octocat/Hello-World.git"
         urls = [repo_url]
 
-        # Create a RepoManager using the Pydantic wrapper
+        # Create a RepoManager
         print("\n🔧 Creating RepoManager with Pydantic support")
         manager = RepoManager(urls, "username", github_token)
         
@@ -51,9 +53,12 @@ async def main():
         print("\n🔄 Cloning the repository")
         await manager.clone_all()
         
-        # Get the clone tasks and demonstrate Pydantic model features
+        # Get the clone tasks (returns Rust objects)
         print("\n📋 Checking clone tasks")
-        tasks = await manager.fetch_clone_tasks()
+        rust_tasks = await manager.fetch_clone_tasks()
+        
+        # Convert to Pydantic models
+        tasks = convert_clone_tasks(rust_tasks)
         
         # Use Pydantic serialization features
         for url, task in tasks.items():
@@ -87,16 +92,16 @@ async def main():
             # Validate from Python dict
             print("\n  Validation Features:")
             try:
-                # Create a CloneStatus from basic Python types
-                new_status = CloneStatus(
+                # Create a PydanticCloneStatus from basic Python types
+                new_status = PydanticCloneStatus(
                     status_type=CloneStatusType.COMPLETED,
                     progress=None,
                     error=None
                 )
                 print(f"  ↳ Created new status: {new_status.status_type}")
                 
-                # Create a CloneTask with validation
-                new_task = CloneTask(
+                # Create a PydanticCloneTask with validation
+                new_task = PydanticCloneTask(
                     url="https://github.com/example/repo.git",
                     status=new_status,
                     temp_dir="/tmp/example"
@@ -107,8 +112,8 @@ async def main():
                 print("\n  Validation Error Handling (Expected Error):")
                 try:
                     # This will intentionally fail validation to demonstrate error handling
-                    print("  ↳ Attempting to create a CloneStatus with invalid status_type (will fail)...")
-                    invalid_status = CloneStatus(
+                    print("  ↳ Attempting to create a PydanticCloneStatus with invalid status_type (will fail)...")
+                    invalid_status = PydanticCloneStatus(
                         status_type="invalid_status",
                         progress=None,
                         error=None

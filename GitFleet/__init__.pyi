@@ -5,14 +5,14 @@ Type stubs for GitFleet package.
 from typing import Any, Awaitable, Dict, List, Optional, Union
 
 # Import from core Rust bindings
-class CloneStatus:
+class RustCloneStatus:
     status_type: str
     progress: Optional[int]
     error: Optional[str]
 
-class CloneTask:
+class RustCloneTask:
     url: str
-    status: CloneStatus
+    status: RustCloneStatus
     temp_dir: Optional[str]
 
 class RepoManager:
@@ -20,7 +20,7 @@ class RepoManager:
         self, urls: List[str], github_username: str, github_token: str
     ) -> None: ...
     def clone_all(self) -> Awaitable[None]: ...
-    def fetch_clone_tasks(self) -> Awaitable[Dict[str, CloneTask]]: ...
+    def fetch_clone_tasks(self) -> Awaitable[Dict[str, RustCloneTask]]: ...
     def clone(self, url: str) -> Awaitable[None]: ...
     def bulk_blame(
         self, repo_path: str, file_paths: List[str]
@@ -29,6 +29,16 @@ class RepoManager:
         self, repo_path: str
     ) -> Awaitable[Union[List[Dict[str, Any]], str]]: ...
     def cleanup(self) -> Dict[str, Union[bool, str]]: ...
+
+# Pydantic models and converters
+from GitFleet.models.repo import (
+    CloneStatusType,
+    PydanticCloneStatus,
+    PydanticCloneTask,
+    to_pydantic_status,
+    to_pydantic_task,
+    convert_clone_tasks,
+)
 
 # Import provider clients
 from GitFleet.providers import (

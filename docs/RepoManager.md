@@ -2,6 +2,8 @@
 
 The `RepoManager` class is the main interface for managing multiple Git repositories, performing high-performance clone operations, running blame analysis, and extracting commit history. It is designed for asynchronous use, allowing you to efficiently manage and analyze many repositories in parallel.
 
+The `RepoManager` is implemented in Rust for maximum performance, with Python bindings via PyO3.
+
 > **Note:** All major methods of `RepoManager` are asynchronous and should be awaited. You can use Python's `asyncio` or any compatible event loop to run these methods.
 
 ## Overview
@@ -14,7 +16,7 @@ The `RepoManager` class is the main interface for managing multiple Git reposito
 ## Initialization
 
 ```python
-from RepoMetrics import RepoManager
+from GitFleet import RepoManager
 
 # List of repository URLs to manage
 urls = [
@@ -36,12 +38,23 @@ await manager.clone_all()
 ```
 
 ### fetch_clone_tasks()
-Fetches the current status of all cloning tasks asynchronously. Returns a dictionary mapping repository URLs to `CloneTask` objects, which include a `CloneStatus`.
+Fetches the current status of all cloning tasks asynchronously. Returns a dictionary mapping repository URLs to `RustCloneTask` objects, which include a `RustCloneStatus`.
+
+**Return Type**: `Dict[str, RustCloneTask]`
 
 ```python
-clone_tasks = await manager.fetch_clone_tasks()
-for url, task in clone_tasks.items():
-    print(url, task.status.status_type)
+# Get raw Rust objects
+rust_tasks = await manager.fetch_clone_tasks()
+for url, task in rust_tasks.items():
+    print(f"{url}: {task.status.status_type}")
+    
+# Or convert to Pydantic models for additional features
+from GitFleet import convert_clone_tasks
+pydantic_tasks = convert_clone_tasks(rust_tasks)
+for url, task in pydantic_tasks.items():
+    print(f"Task: {url}")
+    print(f"Status: {task.status.status_type}")
+    print(f"JSON: {task.model_dump_json()}")
 ```
 
 ### clone(url)
@@ -83,11 +96,11 @@ for url, result in cleanup_results.items():
 
 ```python
 import asyncio
-from RepoMetrics import RepoManager
+from GitFleet import RepoManager
 
 async def main():
     urls = ["https://github.com/owner/repo1.git"]
-    manager = RepoManager(urls, "username", "token")
+    manager = RepoManager(urls, github_username="username", github_token="token")
     await manager.clone_all()
     tasks = await manager.fetch_clone_tasks()
     print(tasks)
@@ -102,7 +115,7 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from RepoMetrics import RepoManager
+from GitFleet import RepoManager
 
 async def main():
     urls = [
@@ -110,7 +123,7 @@ async def main():
         "https://github.com/owner/repo2.git",
         "https://github.com/owner/repo3.git",
     ]
-    manager = RepoManager(urls, "username", "token")
+    manager = RepoManager(urls, github_username="username", github_token="token")
     await manager.clone_all()
     clone_tasks = await manager.fetch_clone_tasks()
     for url, task in clone_tasks.items():
@@ -134,4 +147,40 @@ asyncio.run(main())
 
 ---
 
-For details on `CloneTask` and `CloneStatus`, see their respective documentation pages.
+## Working with Pydantic Models
+
+GitFleet provides Pydantic models that mirror the Rust objects returned by `RepoManager`. These models add serialization, validation, and other Pydantic features:
+
+```python
+import asyncio
+from GitFleet import RepoManager
+from GitFleet import to_pydantic_task, to_pydantic_status, convert_clone_tasks
+
+async def main():
+    # Create a repo manager
+    manager = RepoManager(urls=["https://github.com/owner/repo.git"], 
+                         github_username="username", github_token="token")
+    
+    # Get tasks from the manager (returns Rust objects)
+    rust_tasks = await manager.fetch_clone_tasks()
+    
+    # Convert individual tasks to Pydantic models
+    for url, task in rust_tasks.items():
+        pydantic_task = to_pydantic_task(task)
+        
+        # Now you can use Pydantic features
+        task_json = pydantic_task.model_dump_json(indent=2)
+        print(task_json)
+        
+        # Convert a status to Pydantic
+        pydantic_status = to_pydantic_status(task.status)
+        print(pydantic_status.model_dump())
+    
+    # Or convert all tasks at once
+    pydantic_tasks = convert_clone_tasks(rust_tasks)
+    print(f"Converted {len(pydantic_tasks)} tasks to Pydantic models")
+
+asyncio.run(main())
+```
+
+For details on the Rust objects `RustCloneTask` and `RustCloneStatus`, and their Pydantic counterparts `PydanticCloneTask` and `PydanticCloneStatus`, see the [CloneTask](./CloneTask.md) and [CloneStatus](./CloneStatus.md) documentation pages.

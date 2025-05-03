@@ -8,44 +8,47 @@ clients for interacting with Git hosting providers (GitHub, GitLab, BitBucket).
 
 # Import from the Rust module if available
 try:
-    # Import from the compiled extension if available
+    # Import directly from the Rust extension
     try:
         from .GitFleet import (
-            RepoManager as RustRepoManager,
+            RepoManager,
             CloneStatus as RustCloneStatus,
             CloneTask as RustCloneTask,
         )
-        # Import our wrapper models that support Pydantic
+        # Import Pydantic models and conversion utilities
         from .models.repo import (
-            RepoManager,
-            CloneStatus, 
-            CloneTask,
             CloneStatusType,
-            clone_status_to_pydantic,
-            clone_task_to_pydantic
+            PydanticCloneStatus,
+            PydanticCloneTask,
+            to_pydantic_status,
+            to_pydantic_task,
+            convert_clone_tasks,
         )
+        RUST_AVAILABLE = True
     except ImportError:
         # Will be defined when Rust extension is built
-        RustRepoManager = None
-        RustCloneStatus = None
-        RustCloneTask = None
+        RUST_AVAILABLE = False
         RepoManager = None
-        CloneStatus = None 
-        CloneTask = None
+        RustCloneStatus = None 
+        RustCloneTask = None
         CloneStatusType = None
-        clone_status_to_pydantic = None
-        clone_task_to_pydantic = None
+        PydanticCloneStatus = None
+        PydanticCloneTask = None
+        to_pydantic_status = None
+        to_pydantic_task = None
+        convert_clone_tasks = None
 except Exception:
     # Will be defined when Rust extension is built
-    RustRepoManager = None
+    RUST_AVAILABLE = False
+    RepoManager = None
     RustCloneStatus = None
     RustCloneTask = None
-    RepoManager = None
-    CloneStatus = None
-    CloneTask = None
     CloneStatusType = None
-    clone_status_to_pydantic = None
-    clone_task_to_pydantic = None
+    PydanticCloneStatus = None
+    PydanticCloneTask = None
+    to_pydantic_status = None
+    to_pydantic_task = None
+    convert_clone_tasks = None
 
 # Import provider clients
 from .providers.github import GitHubClient
@@ -72,9 +75,16 @@ from . import utils
 __all__ = [
     # Core repository management
     "RepoManager",
-    "CloneStatus",
-    "CloneTask",
+    "RustCloneStatus",
+    "RustCloneTask",
     "CloneStatusType",
+    
+    # Pydantic models and conversions
+    "PydanticCloneStatus",
+    "PydanticCloneTask",
+    "to_pydantic_status",
+    "to_pydantic_task",
+    "convert_clone_tasks",
     
     # Provider clients
     "GitProviderClient",
@@ -100,10 +110,6 @@ __all__ = [
     "to_json",
     "to_dict",
     "flatten_dataframe",
-    
-    # Conversion utilities for Rust types
-    "clone_status_to_pydantic",
-    "clone_task_to_pydantic",
 ]
 
 __version__ = "0.2.7"

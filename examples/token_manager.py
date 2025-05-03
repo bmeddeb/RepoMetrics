@@ -104,13 +104,16 @@ async def main():
     # Final token status
     print("\n📊 Final token status:")
     for i, token_info in enumerate(token_manager.get_all_tokens(ProviderType.GITHUB), 1):
-        status = "Available"
-        if hasattr(token_info, "status"):
-            if token_info.status == TokenStatus.RATE_LIMITED and hasattr(token_info, "rate_limit"):
-                reset_time = token_info.rate_limit.reset_time if token_info.rate_limit else 0
+        if token_info.status:
+            if token_info.status.is_rate_limited:
+                reset_time = token_info.status.reset_time or 0
                 status = f"Rate limited (resets at {time.ctime(reset_time)})"
-            elif token_info.status == TokenStatus.INVALID:
+            elif not token_info.status.is_valid:
                 status = "Invalid"
+            else:
+                status = f"Available ({token_info.status.remaining_calls} calls remaining)"
+        else:
+            status = "Unknown"
         print(f"Token {i}: {status}")
 
 
