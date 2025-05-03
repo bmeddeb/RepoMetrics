@@ -52,7 +52,7 @@ jobs:
 
       - name: Install documentation dependencies
         run: |
-          pip install mkdocs mkdocs-material mkdocs-awesome-pages-plugin
+          pip install mkdocs mkdocs-material mkdocs-awesome-pages-plugin mkdocs-git-revision-date-localized-plugin mkdocs-minify-plugin
 
       - name: Build docs
         run: mkdocs build
