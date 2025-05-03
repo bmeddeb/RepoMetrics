@@ -142,6 +142,7 @@ async def main():
                 if created_dt:
                     print(f"  ↳ Created: {created_dt.strftime('%Y-%m-%d %H:%M:%S')}")
                     # Convert created_dt to naive by removing tzinfo if it exists
+                    # See docs/advanced/datetime-handling.md for more details on timezone handling
                     naive_created_dt = created_dt.replace(tzinfo=None)
                     days_since = (datetime.now() - naive_created_dt).days
                     print(f"  ↳ Age: {days_since} days")

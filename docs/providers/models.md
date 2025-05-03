@@ -116,6 +116,26 @@ for repo in repos:
     print(f"Stars: {repo.stargazers_count}")
 ```
 
+### Working with Dates
+
+Date fields like `created_at` and `updated_at` are stored as strings but have helper methods to convert them to datetime objects:
+
+```python
+# Get a repository
+repo = repos[0]
+
+# Convert string dates to datetime objects
+if repo.created_at:
+    created_dt = repo.created_datetime()
+    print(f"Created: {created_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Note: The datetime objects are timezone-aware
+    # See the "Working with Dates and Times" guide for details
+    # on handling timezone-aware datetimes
+```
+
+For complete details on working with dates, see the [Working with Dates and Times](../advanced/datetime-handling.md) guide.
+
 ### Conversion to Pandas DataFrames
 
 All models can be converted to pandas DataFrames for data analysis:

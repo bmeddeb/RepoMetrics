@@ -100,6 +100,7 @@ See the [Basic Usage Example](examples/basic-usage.md) for a more complete examp
 - [**Provider APIs**](providers/index.md): Git provider API clients
 - [**Examples**](examples/basic-usage.md): Code examples for various use cases
 - [**Advanced**](advanced/performance.md): Performance tips and advanced usage
+  - [**Datetime Handling**](advanced/datetime-handling.md): Working with dates and times from APIs
 
 ## 🤝 Contributing
 
