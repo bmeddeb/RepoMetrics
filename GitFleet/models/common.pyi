@@ -14,7 +14,7 @@ class ProviderType(str, Enum):
     BITBUCKET: str = "bitbucket"
 
 class UserInfo(BaseModel):
-    id: str
+    id: int  # Changed from str to int to match implementation
     login: str
     name: Optional[str] = None
     email: Optional[str] = None
@@ -31,6 +31,7 @@ class UserInfo(BaseModel):
     def model_validate(cls, obj: Any, from_attributes: bool = False) -> "UserInfo": ...
 
 class RepoInfo(BaseModel):
+    id: int  # Added missing id field
     name: str
     full_name: str
     clone_url: str
@@ -42,6 +43,9 @@ class RepoInfo(BaseModel):
     fork: bool = False
     forks_count: int = 0
     stargazers_count: Optional[int] = None
+    watchers_count: Optional[int] = None  # Added missing field
+    html_url: Optional[str] = None  # Added missing field
+    private: bool = False  # Added missing field
     provider_type: ProviderType = ProviderType.GITHUB
     visibility: str = "public"
     owner: Optional[UserInfo] = None
@@ -73,24 +77,22 @@ class RateLimitInfo(BaseModel):
     @classmethod
     def model_validate(cls, obj: Any, from_attributes: bool = False) -> "RateLimitInfo": ...
 
-class RepoDetails(RepoInfo):
-    topics: List[str]
-    license: Optional[str] = None
-    homepage: Optional[str] = None
-    has_wiki: bool = False
-    has_issues: bool = False
-    has_projects: bool = False
-    archived: bool = False
-    pushed_at: Optional[str] = None
-    size: int = 0
+class CommitRef(BaseModel):
+    """Reference to a commit in a repository."""
+    sha: str
+    url: Optional[str] = None
     
-    def pushed_datetime(self) -> Optional[datetime]: ...
+    model_config: ClassVar[ConfigDict]
+    
+    def model_dump(self) -> Dict[str, Any]: ...
+    def model_dump_json(self, indent: Optional[int] = None) -> str: ...
     
     @classmethod
-    def model_validate(cls, obj: Any, from_attributes: bool = False) -> "RepoDetails": ...
+    def model_validate(cls, obj: Any, from_attributes: bool = False) -> "CommitRef": ...
 
 class BranchInfo(BaseModel):
     name: str
+    commit: Optional[CommitRef] = None  # Added missing commit field
     commit_sha: str
     protected: bool = False
     provider_type: ProviderType = ProviderType.GITHUB
@@ -100,12 +102,13 @@ class BranchInfo(BaseModel):
     
     def model_dump(self) -> Dict[str, Any]: ...
     def model_dump_json(self, indent: Optional[int] = None) -> str: ...
+    def model_post_init(self, __context: Any) -> None: ...  # Added missing method
     
     @classmethod
     def model_validate(cls, obj: Any, from_attributes: bool = False) -> "BranchInfo": ...
 
 class ContributorInfo(BaseModel):
-    id: str
+    id: int  # Changed from str to int to match implementation
     login: str
     contributions: int
     avatar_url: Optional[str] = None
@@ -119,3 +122,26 @@ class ContributorInfo(BaseModel):
     
     @classmethod
     def model_validate(cls, obj: Any, from_attributes: bool = False) -> "ContributorInfo": ...
+
+class RepoDetails(RepoInfo):
+    topics: List[str] = Field(default_factory=list)  # Updated to match implementation
+    homepage: Optional[str] = None
+    has_wiki: bool = False
+    has_issues: bool = False
+    has_projects: bool = False
+    has_pages: Optional[bool] = None  # Added missing field
+    has_downloads: Optional[bool] = None  # Added missing field
+    allow_forking: Optional[bool] = None  # Added missing field
+    archived: bool = False
+    disabled: Optional[bool] = None  # Added missing field
+    pushed_at: Optional[str] = None
+    size: int = 0
+    open_issues_count: Optional[int] = None
+    network_count: Optional[int] = None  # Added missing field
+    subscribers_count: Optional[int] = None  # Added missing field
+    license: Optional[Dict[str, Any]] = None  # Changed type to match implementation
+    
+    def pushed_datetime(self) -> Optional[datetime]: ...
+    
+    @classmethod
+    def model_validate(cls, obj: Any, from_attributes: bool = False) -> "RepoDetails": ...

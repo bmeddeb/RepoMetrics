@@ -87,9 +87,16 @@ from GitFleet.utils import (
 from GitFleet.models import (
     UserInfo,
     RepoInfo,
+    RepoDetails,
     RateLimitInfo,
     BranchInfo,
     ContributorInfo,
+    CommitRef,
 )
 
+# Availability flag
+RUST_AVAILABLE: bool
+
+# Export all names
+__all__: List[str]
 __version__: str

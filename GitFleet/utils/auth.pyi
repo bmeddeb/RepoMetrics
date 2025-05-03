@@ -6,7 +6,10 @@ import os
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from GitFleet.providers.base import ProviderType
+from pydantic import SecretStr
+from pydantic.dataclasses import dataclass
+
+from ..providers.base import ProviderType
 
 @dataclass
 class CredentialEntry:
@@ -14,6 +17,11 @@ class CredentialEntry:
     token: str
     username: Optional[str] = None
     host: Optional[str] = None
+    
+    @property
+    def secret_token(self) -> SecretStr: ...
+    
+    def get_token(self) -> str: ...
 
 def derive_key_from_password(
     password: str, salt: Optional[bytes] = None
