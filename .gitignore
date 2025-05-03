@@ -20,7 +20,8 @@ site/
 /target
 
 Cargo.lock
-
+.venv/
+.env
 # Python
 __pycache__/
 *.py[cod]

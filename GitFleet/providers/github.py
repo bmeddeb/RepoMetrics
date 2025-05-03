@@ -149,24 +149,20 @@ class GitHubClient(GitProviderClient):
     def _convert_to_model(self, data: Dict[str, Any], model_class: Type[T]) -> T:
         """Convert API response data to a model instance for the Python implementation."""
         # Special processing for nested structures before validation
-        if model_class == RepoInfo and "owner" in data and data["owner"]:
-            # Convert the id to string if it's not already
-            if "id" in data["owner"] and not isinstance(data["owner"]["id"], str):
-                data["owner"]["id"] = str(data["owner"]["id"])
+        # No need to convert owner ID to string as model now expects integers
         
-        # Convert id to string for UserInfo and ContributorInfo
-        if (model_class in (UserInfo, ContributorInfo) and 
-            "id" in data and not isinstance(data["id"], str)):
-            # Convert the id to string if it's not already
-            data["id"] = str(data["id"])
-            
         # Handle special case for RateLimitInfo where reset is named differently
         if model_class == RateLimitInfo and "reset" in data:
             data["reset_time"] = data.pop("reset")
             
-        # Handle special case for BranchInfo where commit SHA is nested
+        # Handle special case for BranchInfo where commit data is nested
         if model_class == BranchInfo and "commit" in data and isinstance(data["commit"], dict):
+            # For backward compatibility, extract SHA
             data["commit_sha"] = data["commit"]["sha"]
+            
+            # For full commit data, create a CommitRef object
+            from ..models.common import CommitRef
+            data["commit"] = CommitRef.model_validate(data["commit"])
             
         # Add provider type to data
         data["provider_type"] = ProviderType.GITHUB
