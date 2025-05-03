@@ -59,5 +59,6 @@ all = [
 [tool.maturin]
 python-source = "GitFleet"
 module-name = "GitFleet"
+python-packages = ["GitFleet"]
 manifest-path = "./Cargo.toml"
 features = ["pyo3/extension-module"]
