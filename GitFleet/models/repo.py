@@ -38,6 +38,11 @@ class CloneStatus(BaseModel):
     
     This model mirrors the Rust-generated CloneStatus class and provides
     serialization, validation, and conversion capabilities.
+    
+    Attributes:
+        status_type: The type of status (queued, cloning, completed, failed)
+        progress: The percentage of completion (0-100) if cloning, or None
+        error: An error message if failed, or None
     """
     status_type: CloneStatusType
     progress: Optional[int] = None
@@ -66,6 +71,12 @@ class CloneTask(BaseModel):
     
     This model mirrors the Rust-generated CloneTask class and provides
     serialization, validation, and conversion capabilities.
+    
+    Attributes:
+        url: The URL of the repository being cloned
+        status: The current status of the cloning operation (CloneStatus)
+        temp_dir: The path to the temporary directory where the repository
+                 was cloned, or None if cloning has not completed or failed
     """
     url: str
     status: CloneStatus

@@ -141,7 +141,9 @@ async def main():
                 created_dt = repo.created_datetime()
                 if created_dt:
                     print(f"  ↳ Created: {created_dt.strftime('%Y-%m-%d %H:%M:%S')}")
-                    days_since = (datetime.now() - created_dt).days
+                    # Convert created_dt to naive by removing tzinfo if it exists
+                    naive_created_dt = created_dt.replace(tzinfo=None)
+                    days_since = (datetime.now() - naive_created_dt).days
                     print(f"  ↳ Age: {days_since} days")
             
             # Show serialization with utility functions

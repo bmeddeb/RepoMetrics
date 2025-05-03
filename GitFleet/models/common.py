@@ -80,7 +80,20 @@ class RepoInfo(BaseModel):
     )
     
     def created_datetime(self) -> Optional[datetime]:
-        """Convert created_at string to datetime object."""
+        """Convert created_at string to datetime object.
+        
+        Returns:
+            A timezone-aware datetime object (with UTC timezone),
+            or None if conversion fails.
+            
+        Note:
+            When performing datetime arithmetic with the result,
+            be aware that this returns a timezone-aware datetime. 
+            To subtract from a naive datetime like datetime.now(),
+            you should either:
+            1. Remove the timezone: dt.replace(tzinfo=None)
+            2. Make both aware: use datetime.now(tz=timezone.utc)
+        """
         if not self.created_at:
             return None
         try:
@@ -89,7 +102,20 @@ class RepoInfo(BaseModel):
             return None
     
     def updated_datetime(self) -> Optional[datetime]:
-        """Convert updated_at string to datetime object."""
+        """Convert updated_at string to datetime object.
+        
+        Returns:
+            A timezone-aware datetime object (with UTC timezone),
+            or None if conversion fails.
+            
+        Note:
+            When performing datetime arithmetic with the result,
+            be aware that this returns a timezone-aware datetime. 
+            To subtract from a naive datetime like datetime.now(),
+            you should either:
+            1. Remove the timezone: dt.replace(tzinfo=None)
+            2. Make both aware: use datetime.now(tz=timezone.utc)
+        """
         if not self.updated_at:
             return None
         try:
