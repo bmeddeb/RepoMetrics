@@ -36,7 +36,7 @@ Before you begin contributing, ensure you have the following installed:
 2. Clone your fork locally:
 
 ```bash
-git clone https://github.com/your-username/GitFleet.git
+git clone https://github.com/bmeddeb/GitFleet.git
 cd GitFleet
 ```
 

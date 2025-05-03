@@ -12,7 +12,6 @@ nav:
   - Getting Started:
     - Installation: installation.md
     - Quick Start: quick-start.md
-    - Migration Guide: migration-guide.md
   - Core API:
     - Overview: api/index.md
     - Repository Manager: RepoManager.md

@@ -4,15 +4,15 @@ This page provides an overview of GitFleet's architecture, explaining the design
 
 ## High-Level Architecture
 
-GitFleet is built with a hybrid architecture that combines the performance of Rust with the convenience and ecosystem of Python:
+GitFleet is built with a hybrid architecture that combines the performance of Rust for critical Git operations with the flexibility and ecosystem of Python for API clients and utilities:
 
 ```
 ┌────────────────────────────────────────────────────────────┐
 │                      Python Layer                          │
 │                                                            │
 │  ┌───────────────┐   ┌────────────────┐   ┌─────────────┐  │
-│  │ RepoManager   │   │ Provider APIs  │   │ Models      │  │
-│  │ Python API    │   │ (GitHub, etc.) │   │ (Pydantic)  │  │
+│  │ High-level    │   │ Provider APIs  │   │ Utility     │  │
+│  │ Interfaces    │   │ (GitHub, etc.) │   │ Functions   │  │
 │  └───────────────┘   └────────────────┘   └─────────────┘  │
 └────────────────────────────────────────────────────────────┘
                           │
@@ -22,12 +22,12 @@ GitFleet is built with a hybrid architecture that combines the performance of Ru
 │                       Rust Layer                           │
 │                                                            │
 │  ┌───────────────┐   ┌────────────────┐   ┌─────────────┐  │
-│  │ RepoManager   │   │ Git Operations │   │ Core Models │  │
-│  │ Implementation│   │ (blame, etc.)  │   │             │  │
+│  │ Clone         │   │ Blame & Commit │   │ Repository  │  │
+│  │ Operations    │   │ Analysis       │   │ Management  │  │
 │  └───────────────┘   └────────────────┘   └─────────────┘  │
 └────────────────────────────────────────────────────────────┘
                           │
-                          │ FFI
+                          │ FFI (git2-rs)
                           ▼
 ┌────────────────────────────────────────────────────────────┐
 │                     External Resources                      │
@@ -41,39 +41,70 @@ GitFleet is built with a hybrid architecture that combines the performance of Ru
 
 ## Core Components
 
-### Rust Core Library
+### Rust Core (Performance-Critical Operations)
 
-The core functionality is implemented in Rust for maximum performance:
+The Rust layer implements performance-critical Git operations:
 
-- **Repository Manager**: Manages repository cloning, cleanup, and operations
-- **Blame Engine**: High-performance blame analysis
-- **Commit Extractor**: Efficient commit history processing
-- **Clone Manager**: Asynchronous repository cloning with progress tracking
+- **Repository Cloning**: Asynchronous cloning with progress tracking
+- **Blame Analysis**: High-performance blame extraction 
+- **Commit Extraction**: Efficient commit history processing
+- **Repository Management**: Core repository operations
 
 #### Key Rust Modules
 
-- `src/lib.rs`: Main entrypoint and Python binding definitions
+- `src/lib.rs`: Main entry point and Python binding definitions
 - `src/repo.rs`: Repository management logic
 - `src/blame.rs`: Git blame implementation
 - `src/commits.rs`: Commit history extraction
 - `src/clone.rs`: Repository cloning with progress tracking
-- `src/token.rs`: Token management for API authentication
 
-### Python Interface
+### Python Layer (API Clients & Utilities)
 
-The Python interface provides a user-friendly API with additional features:
+The Python layer provides high-level APIs, provider clients, and utilities:
 
-- **Asyncio Integration**: All operations are exposed as Python coroutines
-- **Pydantic Models**: Type validation and serialization
-- **Provider APIs**: Interfaces for Git hosting providers
-- **Pandas Integration**: Convert results to DataFrames
+- **Provider APIs**: Interfaces for Git hosting providers like GitHub
+- **Data Models**: Pydantic models for validation and serialization
+- **Authentication**: Token management and credential handling
+- **Utility Functions**: Conversion, rate limiting, and helpers
 
 #### Key Python Modules
 
 - `GitFleet/__init__.py`: Main package exports
-- `GitFleet/models/`: Data models for repository operations
-- `GitFleet/providers/`: Provider API clients (GitHub, etc.)
-- `GitFleet/utils/`: Utility functions and helpers
+- `GitFleet/providers/github.py`: GitHub API client
+- `GitFleet/providers/token_manager.py`: API token management
+- `GitFleet/models/repo.py`: Pydantic wrappers for Rust objects
+- `GitFleet/models/common.py`: Common data models
+- `GitFleet/utils/auth.py`: Authentication utilities
+- `GitFleet/utils/converters.py`: Data conversion utilities
+- `GitFleet/utils/rate_limit.py`: Rate limiting helpers
+
+## Implementation Split
+
+The implementation responsibilities are split between Rust and Python:
+
+### Implemented in Rust
+
+- **Repository Cloning**: Efficient Git clone operations with progress reporting
+- **Blame Analysis**: High-performance file blame extraction
+- **Commit Extraction**: Fast commit history analysis
+- **Core Repository Management**: Basic repository operations
+
+### Implemented in Python
+
+- **GitHub API Client**: Async HTTP interface to GitHub API
+- **Token Management**: Smart token rotation and rate limit handling
+- **Data Validation**: Pydantic models for request/response validation
+- **Authentication**: Credential management and storage
+- **Utilities**: Conversion to pandas DataFrames, data formatting
+
+## Python-Rust Bridge
+
+The Python-Rust bridge is implemented using PyO3:
+
+- **Exposed Classes**: `RepoManager`, `CloneStatus`, `CloneTask`
+- **Async Bridge**: Integration between Tokio and asyncio
+- **Memory Management**: Handles reference counting between Python and Rust
+- **Error Propagation**: Converts Rust errors to Python exceptions
 
 ## Concurrency Model
 
@@ -81,9 +112,9 @@ GitFleet uses a hybrid concurrency model:
 
 - **Rust**: Uses Tokio for asynchronous operations
 - **Python**: Exposes asyncio coroutines for non-blocking operations
-- **Bridge**: Uses pyo3-asyncio to bridge between Tokio and asyncio
+- **Bridge**: Uses pyo3-async-runtimes to bridge between Tokio and asyncio
 
-Operations that could block (like Git operations) are executed in separate threads to avoid blocking the main event loop.
+Git operations that could block (like cloning large repositories) are executed asynchronously to avoid blocking the main thread.
 
 ## Memory Management
 
@@ -92,35 +123,26 @@ GitFleet optimizes memory usage through:
 - **Rust Ownership**: Ensures memory safety without garbage collection
 - **Arc Sharing**: Shared resources use atomic reference counting
 - **Temporary Directories**: Automatic cleanup of temporary clone directories
-- **Stream Processing**: Large result sets are processed as streams, not loaded entirely in memory
+- **Stream Processing**: Large result sets can be processed as streams
 
 ## Error Handling
 
-Error handling is comprehensive:
+Error handling follows a consistent pattern:
 
 - **Rust Results**: Functions return `Result<T, E>` for error handling
 - **Python Exceptions**: Rust errors are converted to appropriate Python exceptions
 - **Status Objects**: Operations provide status objects with detailed information
-- **Logging**: Comprehensive logging throughout the codebase
-
-## Testing Strategy
-
-GitFleet employs a multi-layered testing strategy:
-
-- **Rust Unit Tests**: Test core functionality in isolation
-- **Python Unit Tests**: Test Python-specific functionality
-- **Integration Tests**: Test the full stack from Python to external systems
-- **Property-Based Tests**: Test with randomized inputs for robustness
+- **Structured Errors**: Error types are well-defined and informative
 
 ## Performance Optimizations
 
 Several performance optimizations are employed:
 
+- **Native Git Operations**: Critical Git operations are implemented in Rust
 - **Parallel Processing**: Multiple repositories processed concurrently
-- **Lazy Loading**: Results loaded on demand to reduce memory usage
-- **Caching**: Common operations are cached to avoid redundant work
-- **Native Implementation**: Performance-critical code in Rust
+- **Async I/O**: Non-blocking I/O operations for network and file system
 - **Tokio Runtime**: Efficient task scheduler for concurrent operations
+- **PyO3 Zero-Copy**: Minimizes data copying between Python and Rust
 
 ## Security Considerations
 
