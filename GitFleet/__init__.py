@@ -112,4 +112,4 @@ __all__ = [
     "flatten_dataframe",
 ]
 
-__version__ = "0.2.7"
+__version__ = "0.2.8"
