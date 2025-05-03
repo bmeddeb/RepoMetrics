@@ -15,8 +15,7 @@ import asyncio
 import time
 from pprint import pprint
 
-from GitFleet import GitHubClient
-from GitFleet.providers import TokenManager, TokenStatus, ProviderType
+from GitFleet.providers import TokenManager, TokenStatus, ProviderType, GitHubClient
 
 
 async def main():
