@@ -25,11 +25,11 @@ To make the token available to GitHub Actions:
 1. Go to your repository's settings
 2. Click on "Secrets and variables" → "Actions"
 3. Click "New repository secret"
-4. Set the name to `GITHUB_API_TOKEN`
+4. Set the name to `GH_API_TOKEN`
 5. Paste the token value in the secret value field
 6. Click "Add secret"
 
-This token will now be available to GitHub Actions workflows as `${{ secrets.GITHUB_API_TOKEN }}`.
+This token will now be available to GitHub Actions workflows as `${{ secrets.GH_API_TOKEN }}`.
 
 ## Model Validation Workflow
 
@@ -38,7 +38,7 @@ The model validation workflow (`model-validation.yml`) automatically:
 1. Runs whenever code in the `GitFleet/models/` or `GitFleet/providers/` directories is changed
 2. Builds the Rust extension with maturin
 3. Runs the Pydantic model validation tests
-4. Uses the `GITHUB_API_TOKEN` secret for API authentication
+4. Uses the `GH_API_TOKEN` secret for API authentication
 
 ### Local Testing
 
