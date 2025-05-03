@@ -25,7 +25,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # Import the Pydantic-enabled models
 from GitFleet.models.repo import (
     RepoManager, CloneStatus, CloneTask, CloneStatusType,
-    clone_status_to_pydantic, clone_task_to_pydantic
 )
 
 
@@ -104,17 +103,18 @@ async def main():
                 )
                 print(f"  ↳ Created new task: {new_task.url}")
                 
-                # Show validation error handling
-                print("\n  Validation Error Handling:")
+                # Show validation error handling (intentionally creating an error)
+                print("\n  Validation Error Handling (Expected Error):")
                 try:
-                    # This will fail validation - invalid status_type
+                    # This will intentionally fail validation to demonstrate error handling
+                    print("  ↳ Attempting to create a CloneStatus with invalid status_type (will fail)...")
                     invalid_status = CloneStatus(
                         status_type="invalid_status",
                         progress=None,
                         error=None
                     )
                 except Exception as e:
-                    print(f"  ↳ Caught validation error: {str(e)[:100]}...")
+                    print(f"  ↳ ✓ Successfully caught validation error: {str(e)[:100]}...")
                 
             except Exception as e:
                 print(f"  ↳ Error: {str(e)}")
