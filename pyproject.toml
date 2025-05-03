@@ -12,6 +12,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "flask>=3.1.0",
     "httpx>=0.24.0", # Required for API clients
     "pytest-asyncio>=0.26.0",
 ]
