@@ -36,18 +36,22 @@ jobs:
           profile: minimal
           toolchain: stable
       
-      - name: Install dependencies
+      - name: Install dependencies in a virtual environment
         run: |
+          python -m venv .venv      # Create a virtual environment
+          source .venv/bin/activate # Activate the virtual environment
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio python-dotenv maturin
           pip install -e ".[dev,pydantic]"
           
       - name: Build Rust extension
         run: |
+          source .venv/bin/activate # Activate the virtual environment
           maturin develop
       
       - name: Run model validation tests
         run: |
+          source .venv/bin/activate # Activate the virtual environment
           pytest tests/test_github_models.py -v
         env:
           GITHUB_TOKEN: ${{ secrets.GH_API_TOKEN }}
