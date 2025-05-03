@@ -189,6 +189,48 @@ async def extract_commits(session_id):
     })
 
 
+@app.route('/api/list_directories/<session_id>', methods=['GET'])
+async def list_directories(session_id):
+    """List all available directories in the cloned repository"""
+    if session_id not in repo_managers:
+        return jsonify({'error': 'Invalid session ID'}), 404
+    
+    repo_data = repo_managers[session_id]
+    
+    # Check if repository is cloned
+    if repo_data['status'] != 'completed' or not repo_data.get('temp_dir'):
+        return jsonify({'error': 'Repository not yet cloned'}), 400
+    
+    temp_dir = repo_data['temp_dir']
+    
+    # Get all directories in the repository
+    directories = []
+    for root, dirs, _ in os.walk(temp_dir):
+        # Skip .git directory
+        if '.git' in dirs:
+            dirs.remove('.git')
+        
+        # Add all directories relative to the repository root
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            # Convert to relative path
+            rel_path = os.path.relpath(dir_path, temp_dir)
+            
+            # Skip hidden directories and deeply nested ones for clarity
+            if not rel_path.startswith('.') and rel_path.count('/') < 3:
+                directories.append(rel_path)
+    
+    # Add the root directory as an option
+    directories.insert(0, '/')
+    
+    # Sort directories for better display
+    directories.sort()
+    
+    return jsonify({
+        'directories': directories
+    })
+
+
 @app.route('/api/run_blame/<session_id>', methods=['POST'])
 async def run_blame(session_id):
     """Run blame analysis on specified directories"""
@@ -203,7 +245,11 @@ async def run_blame(session_id):
     
     # Get directories to analyze
     data = await request.get_json()
-    target_dirs = data.get('directories', TARGET_DIRS)
+    target_dirs = data.get('directories', [])
+    
+    # If no directories provided, return error
+    if not target_dirs:
+        return jsonify({'error': 'No directories specified for analysis'}), 400
     
     # Start the background task to run blame analysis
     # With Quart, we can directly use asyncio.create_task
@@ -395,6 +441,8 @@ async def extract_commit_history(session_id):
     manager = repo_data['manager']
     temp_dir = repo_data['temp_dir']
     
+    print(f"Starting commit extraction for repository in {temp_dir}")
+    
     # Initialize results if not present
     if session_id not in analysis_results:
         analysis_results[session_id] = {}
@@ -411,51 +459,114 @@ async def extract_commit_history(session_id):
     try:
         # Extract commits
         start_time = time.time()
-        commits = await manager.extract_commits(temp_dir)
+        print(f"Calling manager.extract_commits on {temp_dir}")
+        try:
+            commits = await manager.extract_commits(temp_dir)
+            print(f"Received commits data: {type(commits)}, count: {len(commits) if isinstance(commits, list) else 'not a list'}")
+        except Exception as commit_error:
+            error_msg = f"Error calling extract_commits: {str(commit_error)}"
+            print(error_msg)
+            # Update status and broadcast error
+            repo_data['commit_status'] = 'failed'
+            analysis_results[session_id]['commits'] = {
+                'error': error_msg,
+                'status': 'failed'
+            }
+            await broadcast_status_update(session_id, {
+                'type': 'commit_extraction_failed',
+                'data': {
+                    'error': error_msg
+                }
+            })
+            return
+            
         duration = time.time() - start_time
         
         # Process results
-        if isinstance(commits, list):
+        if isinstance(commits, list) and commits:
+            print(f"Processing {len(commits)} commits")
+            
             # Convert timestamps if pandas is available
             if HAS_PANDAS:
-                df = pd.DataFrame(commits)
-                
-                # Convert Unix timestamps to datetime objects
-                df['author_timestamp'] = pd.to_datetime(df['author_timestamp'], unit='s')
-                df['committer_timestamp'] = pd.to_datetime(df['committer_timestamp'], unit='s')
-                
-                # Add derived fields
-                df['date'] = df['author_timestamp'].dt.date
-                df['month'] = df['author_timestamp'].dt.to_period('M')
-                df['year'] = df['author_timestamp'].dt.year
-                
-                # Generate statistics
-                # Convert time periods to strings for JSON serialization
-                monthly_commits = df.groupby('month').size().tail(6)
-                monthly_commits_dict = {str(k): int(v) for k, v in monthly_commits.items()}
-                
-                commit_stats = {
-                    'count': len(df),
-                    'date_range': {
-                        'min': df['date'].min().isoformat() if not df['date'].empty else None,
-                        'max': df['date'].max().isoformat() if not df['date'].empty else None
-                    },
-                    'authors': df['author_name'].value_counts().head(10).to_dict(),
-                    'total_additions': int(df['additions'].sum()),
-                    'total_deletions': int(df['deletions'].sum()),
-                    'net_change': int(df['additions'].sum() - df['deletions'].sum()),
-                    'commits_by_month': monthly_commits_dict,
-                    'performance': {
-                        'duration_seconds': duration,
-                        'duration_formatted': format_duration(duration),
-                        'commits_per_second': len(df) / duration if duration > 0 else 0
+                try:
+                    df = pd.DataFrame(commits)
+                    
+                    # Debug the first commit to see its structure
+                    if not df.empty:
+                        print(f"First commit sample: {df.iloc[0].to_dict()}")
+                    
+                    # Check if the expected timestamp fields exist
+                    if 'author_timestamp' not in df.columns:
+                        print(f"Warning: author_timestamp not found in commit data. Available columns: {df.columns.tolist()}")
+                        # Add a placeholder timestamp if missing
+                        df['author_timestamp'] = pd.Series([int(time.time())] * len(df))
+                    
+                    if 'committer_timestamp' not in df.columns:
+                        print(f"Warning: committer_timestamp not found in commit data. Adding placeholder.")
+                        df['committer_timestamp'] = df['author_timestamp']
+                    
+                    # Convert Unix timestamps to datetime objects
+                    df['author_timestamp'] = pd.to_datetime(df['author_timestamp'], unit='s')
+                    df['committer_timestamp'] = pd.to_datetime(df['committer_timestamp'], unit='s')
+                    
+                    # Add derived fields
+                    df['date'] = df['author_timestamp'].dt.date
+                    df['month'] = df['author_timestamp'].dt.to_period('M')
+                    df['year'] = df['author_timestamp'].dt.year
+                    
+                    # Check if expected fields exist, add defaults if they don't
+                    if 'additions' not in df.columns:
+                        print("Warning: additions field not found in commit data")
+                        df['additions'] = 0
+                    
+                    if 'deletions' not in df.columns:
+                        print("Warning: deletions field not found in commit data")
+                        df['deletions'] = 0
+                    
+                    if 'author_name' not in df.columns:
+                        print("Warning: author_name field not found in commit data")
+                        df['author_name'] = 'Unknown'
+                    
+                    # Generate statistics
+                    # Convert time periods to strings for JSON serialization
+                    monthly_commits = df.groupby('month').size().tail(6)
+                    monthly_commits_dict = {str(k): int(v) for k, v in monthly_commits.items()}
+                    
+                    commit_stats = {
+                        'count': len(df),
+                        'date_range': {
+                            'min': df['date'].min().isoformat() if not df['date'].empty else None,
+                            'max': df['date'].max().isoformat() if not df['date'].empty else None
+                        },
+                        'authors': df['author_name'].value_counts().head(10).to_dict(),
+                        'total_additions': int(df['additions'].sum()),
+                        'total_deletions': int(df['deletions'].sum()),
+                        'net_change': int(df['additions'].sum() - df['deletions'].sum()),
+                        'commits_by_month': monthly_commits_dict,
+                        'performance': {
+                            'duration_seconds': duration,
+                            'duration_formatted': format_duration(duration),
+                            'commits_per_second': len(df) / duration if duration > 0 else 0
+                        }
                     }
-                }
+                except Exception as pandas_error:
+                    print(f"Error processing commits with pandas: {str(pandas_error)}")
+                    # Fall back to basic stats without pandas
+                    commit_stats = {
+                        'count': len(commits),
+                        'recent_commits': [c for c in commits[:10]],
+                        'performance': {
+                            'duration_seconds': duration,
+                            'duration_formatted': format_duration(duration)
+                        },
+                        'note': f"Error processing with pandas: {str(pandas_error)}"
+                    }
             else:
                 # Basic stats without pandas
+                print("Processing commits without pandas")
                 commit_stats = {
                     'count': len(commits),
-                    'recent_commits': commits[:10],
+                    'recent_commits': [c for c in commits[:10]],
                     'performance': {
                         'duration_seconds': duration,
                         'duration_formatted': format_duration(duration)
@@ -466,16 +577,20 @@ async def extract_commit_history(session_id):
             analysis_results[session_id]['commits'] = commit_stats
             repo_data['commit_status'] = 'completed'
             
+            print("Successfully processed commit data")
+            
             # Broadcast results
             await broadcast_status_update(session_id, {
                 'type': 'commit_extraction_completed',
                 'data': commit_stats
             })
-        else:
-            # Handle error
+        elif isinstance(commits, list) and not commits:
+            # Handle empty commits list
+            error_msg = "No commits found in repository"
+            print(error_msg)
             repo_data['commit_status'] = 'failed'
             analysis_results[session_id]['commits'] = {
-                'error': str(commits),
+                'error': error_msg,
                 'status': 'failed'
             }
             
@@ -483,23 +598,42 @@ async def extract_commit_history(session_id):
             await broadcast_status_update(session_id, {
                 'type': 'commit_extraction_failed',
                 'data': {
-                    'error': str(commits)
+                    'error': error_msg
+                }
+            })
+        else:
+            # Handle error
+            error_msg = f"Unexpected result from extract_commits: {str(commits)}"
+            print(error_msg)
+            repo_data['commit_status'] = 'failed'
+            analysis_results[session_id]['commits'] = {
+                'error': error_msg,
+                'status': 'failed'
+            }
+            
+            # Broadcast error
+            await broadcast_status_update(session_id, {
+                'type': 'commit_extraction_failed',
+                'data': {
+                    'error': error_msg
                 }
             })
     
     except Exception as e:
         # Handle exceptions
+        error_msg = f"Error during commit extraction: {str(e)}"
+        print(error_msg)
         repo_data['commit_status'] = 'error'
         analysis_results[session_id]['commits'] = {
-            'error': str(e),
+            'error': error_msg,
             'status': 'error'
         }
         
         # Broadcast error
         await broadcast_status_update(session_id, {
-            'type': 'error',
+            'type': 'commit_extraction_failed',
             'data': {
-                'message': str(e)
+                'error': error_msg
             }
         })
 
@@ -526,20 +660,37 @@ async def run_blame_analysis(session_id, target_dirs):
     })
     
     try:
+        # Handle root directory case specially
+        if '/' in target_dirs:
+            target_dirs = [d for d in target_dirs if d != '/'] + ['.']  # Replace '/' with '.'
+        
+        # Debug log the directories being processed
+        print(f"Analyzing directories: {target_dirs} in repo {temp_dir}")
+        
         # Determine directories to analyze
         dirs_to_analyze = []
         for target_dir in target_dirs:
+            # Special case for root directory
+            if target_dir == '.':
+                dirs_to_analyze.append(('/', temp_dir))
+                continue
+                
             dir_path = os.path.join(temp_dir, target_dir)
+            print(f"Checking if {dir_path} exists and is a directory")
             if os.path.isdir(dir_path):
                 dirs_to_analyze.append((target_dir, dir_path))
+                print(f"Added {dir_path} to analyze")
             else:
+                print(f"Skipping {dir_path} - not a directory")
                 continue  # Skip invalid directories
         
         if not dirs_to_analyze:
             # No valid directories found
+            error_msg = f"No valid directories found among {target_dirs}"
+            print(error_msg)
             repo_data['blame_status'] = 'failed'
             analysis_results[session_id]['blame'] = {
-                'error': 'No valid directories found',
+                'error': error_msg,
                 'status': 'failed'
             }
             
@@ -547,25 +698,30 @@ async def run_blame_analysis(session_id, target_dirs):
             await broadcast_status_update(session_id, {
                 'type': 'blame_analysis_failed',
                 'data': {
-                    'error': 'No valid directories found'
+                    'error': error_msg
                 }
             })
             return
         
         # Find files to analyze
         file_paths = []
-        for _, dir_path in dirs_to_analyze:
+        for dir_name, dir_path in dirs_to_analyze:
+            print(f"Walking directory: {dir_name} ({dir_path})")
             for root, _, files in os.walk(dir_path):
                 for file in files:
-                    if file.endswith((".py", ".js", ".html", ".css", ".md")):
-                        rel_path = os.path.relpath(os.path.join(root, file), temp_dir)
+                    if file.endswith((".py", ".js", ".html", ".css", ".md", ".rs", ".json", ".toml", ".txt")):
+                        abs_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(abs_path, temp_dir)
                         file_paths.append(rel_path)
+                        print(f"Added file: {rel_path}")
         
         if not file_paths:
             # No suitable files found
+            error_msg = f"No suitable files found in {[d[0] for d in dirs_to_analyze]}"
+            print(error_msg)
             repo_data['blame_status'] = 'failed'
             analysis_results[session_id]['blame'] = {
-                'error': 'No suitable files found',
+                'error': error_msg,
                 'status': 'failed'
             }
             
@@ -573,7 +729,7 @@ async def run_blame_analysis(session_id, target_dirs):
             await broadcast_status_update(session_id, {
                 'type': 'blame_analysis_failed',
                 'data': {
-                    'error': 'No suitable files found'
+                    'error': error_msg
                 }
             })
             return
@@ -587,10 +743,32 @@ async def run_blame_analysis(session_id, target_dirs):
             }
         })
         
+        print(f"Starting blame analysis on {len(file_paths)} files")
+        
         # Run blame analysis with benchmarking
         start_time = time.time()
         blame_start_time = time.time()
-        blame_results = await manager.bulk_blame(temp_dir, file_paths)
+        
+        try:
+            blame_results = await manager.bulk_blame(temp_dir, file_paths)
+            print(f"Blame analysis completed successfully")
+        except Exception as e:
+            error_msg = f"Error during bulk_blame operation: {str(e)}"
+            print(error_msg)
+            # Broadcast error and return
+            repo_data['blame_status'] = 'failed'
+            analysis_results[session_id]['blame'] = {
+                'error': error_msg,
+                'status': 'failed'
+            }
+            await broadcast_status_update(session_id, {
+                'type': 'blame_analysis_failed',
+                'data': {
+                    'error': error_msg
+                }
+            })
+            return
+            
         blame_duration = time.time() - blame_start_time
         total_duration = time.time() - start_time
         
@@ -866,7 +1044,16 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
                         </div>
                         <div class="mt-3" id="analysisButtons" style="display: none;">
                             <button class="btn btn-success" id="extractCommitsBtn">Extract Commits</button>
-                            <button class="btn btn-info" id="runBlameBtn">Run Blame Analysis</button>
+                            <div class="mt-3" id="blameOptions">
+                                <h6>Select Directories for Blame Analysis:</h6>
+                                <div class="mb-2" id="directoryOptions">
+                                    <div class="spinner-border spinner-border-sm" role="status">
+                                        <span class="visually-hidden">Loading directories...</span>
+                                    </div>
+                                    <small>Loading directories...</small>
+                                </div>
+                                <button class="btn btn-info" id="runBlameBtn" disabled>Run Blame Analysis</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1193,6 +1380,70 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
             };
         }
 
+        // Fetch available directories for blame analysis
+        function fetchDirectories() {
+            if (!sessionId) return;
+            
+            const directoryOptions = document.getElementById('directoryOptions');
+            
+            fetch(`/api/list_directories/${sessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        directoryOptions.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                        return;
+                    }
+                    
+                    // Create checkboxes for directory selection
+                    directoryOptions.innerHTML = '';
+                    if (data.directories && data.directories.length > 0) {
+                        const dirList = document.createElement('div');
+                        dirList.className = 'directory-list';
+                        
+                        data.directories.forEach(dir => {
+                            const dirItem = document.createElement('div');
+                            dirItem.className = 'form-check';
+                            
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'form-check-input directory-checkbox';
+                            checkbox.id = `dir_${dir.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                            checkbox.value = dir;
+                            
+                            const label = document.createElement('label');
+                            label.className = 'form-check-label';
+                            label.htmlFor = checkbox.id;
+                            label.textContent = dir;
+                            
+                            dirItem.appendChild(checkbox);
+                            dirItem.appendChild(label);
+                            dirList.appendChild(dirItem);
+                        });
+                        
+                        directoryOptions.appendChild(dirList);
+                        
+                        // Enable/disable blame button based on selection
+                        const checkboxes = document.querySelectorAll('.directory-checkbox');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.addEventListener('change', function() {
+                                const checkedDirs = document.querySelectorAll('.directory-checkbox:checked');
+                                document.getElementById('runBlameBtn').disabled = checkedDirs.length === 0;
+                            });
+                        });
+                        
+                        // Enable run blame button now that directories are loaded
+                        document.getElementById('runBlameBtn').disabled = true;
+                    } else {
+                        directoryOptions.innerHTML = '<div class="alert alert-warning">No directories found in repository</div>';
+                        document.getElementById('runBlameBtn').disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching directories:', error);
+                    directoryOptions.innerHTML = '<div class="alert alert-danger">Failed to load directories</div>';
+                });
+        }
+
         // Handle WebSocket messages
         function handleWebSocketMessage(data) {
             console.log('Received message:', data);
@@ -1206,6 +1457,8 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
                     updateCloneStatus(data.data);
                     analysisButtonsDiv.style.display = 'block';
                     document.getElementById('cloneDuration').textContent = data.data.elapsed_time;
+                    // Fetch available directories for blame analysis
+                    fetchDirectories();
                     break;
                 case 'commit_extraction_started':
                     document.getElementById('commitsLoading').style.display = 'block';
@@ -1375,15 +1628,28 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
 
         // Show commit error
         function showCommitError(message) {
+            console.error("Commit extraction error:", message);
             document.getElementById('commitsLoading').style.display = 'none';
             document.getElementById('commitsContent').style.display = 'none';
             document.getElementById('commitsError').style.display = 'block';
-            document.getElementById('commitsErrorMessage').textContent = message;
+            document.getElementById('commitsErrorMessage').textContent = message || "Unknown error occurred during commit extraction";
         }
 
         // Start blame analysis
         function startBlameAnalysis() {
             if (!sessionId) return;
+            
+            // Get selected directories
+            const selectedDirs = [];
+            document.querySelectorAll('.directory-checkbox:checked').forEach(checkbox => {
+                selectedDirs.push(checkbox.value);
+            });
+            
+            // Validate selected directories
+            if (selectedDirs.length === 0) {
+                alert('Please select at least one directory to analyze');
+                return;
+            }
 
             // Send request to run blame analysis
             fetch(`/api/run_blame/${sessionId}`, {
@@ -1392,7 +1658,7 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    directories: ['plots', 'api'] // Default directories
+                    directories: selectedDirs
                 })
             })
             .catch(error => {
@@ -1550,10 +1816,11 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
 
         // Show blame error
         function showBlameError(message) {
+            console.error("Blame analysis error:", message);
             document.getElementById('blameLoading').style.display = 'none';
             document.getElementById('blameContent').style.display = 'none';
             document.getElementById('blameError').style.display = 'block';
-            document.getElementById('blameErrorMessage').textContent = message;
+            document.getElementById('blameErrorMessage').textContent = message || "Unknown error occurred during blame analysis";
         }
     </script>
 </body>

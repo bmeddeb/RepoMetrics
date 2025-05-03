@@ -192,6 +192,48 @@ def extract_commits(session_id):
     })
 
 
+@app.route('/api/list_directories/<session_id>', methods=['GET'])
+def list_directories(session_id):
+    """List all available directories in the cloned repository"""
+    if session_id not in repo_managers:
+        return jsonify({'error': 'Invalid session ID'}), 404
+    
+    repo_data = repo_managers[session_id]
+    
+    # Check if repository is cloned
+    if repo_data['status'] != 'completed' or not repo_data.get('temp_dir'):
+        return jsonify({'error': 'Repository not yet cloned'}), 400
+    
+    temp_dir = repo_data['temp_dir']
+    
+    # Get all directories in the repository
+    directories = []
+    for root, dirs, _ in os.walk(temp_dir):
+        # Skip .git directory
+        if '.git' in dirs:
+            dirs.remove('.git')
+        
+        # Add all directories relative to the repository root
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            # Convert to relative path
+            rel_path = os.path.relpath(dir_path, temp_dir)
+            
+            # Skip hidden directories and deeply nested ones for clarity
+            if not rel_path.startswith('.') and rel_path.count('/') < 3:
+                directories.append(rel_path)
+    
+    # Add the root directory as an option
+    directories.insert(0, '/')
+    
+    # Sort directories for better display
+    directories.sort()
+    
+    return jsonify({
+        'directories': directories
+    })
+
+
 @app.route('/api/run_blame/<session_id>', methods=['POST'])
 def run_blame(session_id):
     """Run blame analysis on specified directories"""
@@ -206,7 +248,11 @@ def run_blame(session_id):
     
     # Get directories to analyze
     data = request.json
-    target_dirs = data.get('directories', TARGET_DIRS)
+    target_dirs = data.get('directories', [])
+    
+    # If no directories provided, return error
+    if not target_dirs:
+        return jsonify({'error': 'No directories specified for analysis'}), 400
     
     # Start the background task to run blame analysis in a separate thread
     def run_async_task():
@@ -720,7 +766,16 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
                         </div>
                         <div class="mt-3" id="analysisButtons" style="display: none;">
                             <button class="btn btn-success" id="extractCommitsBtn">Extract Commits</button>
-                            <button class="btn btn-info" id="runBlameBtn">Run Blame Analysis</button>
+                            <div class="mt-3" id="blameOptions">
+                                <h6>Select Directories for Blame Analysis:</h6>
+                                <div class="mb-2" id="directoryOptions">
+                                    <div class="spinner-border spinner-border-sm" role="status">
+                                        <span class="visually-hidden">Loading directories...</span>
+                                    </div>
+                                    <small>Loading directories...</small>
+                                </div>
+                                <button class="btn btn-info" id="runBlameBtn" disabled>Run Blame Analysis</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1042,6 +1097,70 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
             }, 1000);
         }
 
+        // Fetch available directories for blame analysis
+        function fetchDirectories() {
+            if (!sessionId) return;
+            
+            const directoryOptions = document.getElementById('directoryOptions');
+            
+            fetch(`/api/list_directories/${sessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        directoryOptions.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                        return;
+                    }
+                    
+                    // Create checkboxes for directory selection
+                    directoryOptions.innerHTML = '';
+                    if (data.directories && data.directories.length > 0) {
+                        const dirList = document.createElement('div');
+                        dirList.className = 'directory-list';
+                        
+                        data.directories.forEach(dir => {
+                            const dirItem = document.createElement('div');
+                            dirItem.className = 'form-check';
+                            
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.className = 'form-check-input directory-checkbox';
+                            checkbox.id = `dir_${dir.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                            checkbox.value = dir;
+                            
+                            const label = document.createElement('label');
+                            label.className = 'form-check-label';
+                            label.htmlFor = checkbox.id;
+                            label.textContent = dir;
+                            
+                            dirItem.appendChild(checkbox);
+                            dirItem.appendChild(label);
+                            dirList.appendChild(dirItem);
+                        });
+                        
+                        directoryOptions.appendChild(dirList);
+                        
+                        // Enable/disable blame button based on selection
+                        const checkboxes = document.querySelectorAll('.directory-checkbox');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.addEventListener('change', function() {
+                                const checkedDirs = document.querySelectorAll('.directory-checkbox:checked');
+                                document.getElementById('runBlameBtn').disabled = checkedDirs.length === 0;
+                            });
+                        });
+                        
+                        // Enable run blame button now that directories are loaded
+                        document.getElementById('runBlameBtn').disabled = true;
+                    } else {
+                        directoryOptions.innerHTML = '<div class="alert alert-warning">No directories found in repository</div>';
+                        document.getElementById('runBlameBtn').disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching directories:', error);
+                    directoryOptions.innerHTML = '<div class="alert alert-danger">Failed to load directories</div>';
+                });
+        }
+
         // Update clone status display
         function updateCloneStatus(data) {
             currentStatus = data;
@@ -1081,6 +1200,9 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
                 
                 // Update performance tab with clone duration
                 document.getElementById('cloneDuration').textContent = data.elapsed_time;
+                
+                // Fetch available directories
+                fetchDirectories();
             }
         }
 
@@ -1242,6 +1364,18 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
         // Start blame analysis
         function startBlameAnalysis() {
             if (!sessionId) return;
+            
+            // Get selected directories
+            const selectedDirs = [];
+            document.querySelectorAll('.directory-checkbox:checked').forEach(checkbox => {
+                selectedDirs.push(checkbox.value);
+            });
+            
+            // Validate selected directories
+            if (selectedDirs.length === 0) {
+                alert('Please select at least one directory to analyze');
+                return;
+            }
 
             // Show loading state
             document.getElementById('blameLoading').style.display = 'block';
@@ -1260,7 +1394,7 @@ with open(os.path.join(templates_dir, 'index.html'), 'w') as f:
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    directories: ['plots', 'api'] // Default directories
+                    directories: selectedDirs
                 })
             })
             .then(response => response.json())
