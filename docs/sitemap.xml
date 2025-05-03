@@ -37,6 +37,10 @@
          <lastmod>2025-05-03</lastmod>
     </url>
     <url>
+         <loc>https://bmeddeb.github.io/GitFleet/advanced/datetime-handling/</loc>
+         <lastmod>2025-05-03</lastmod>
+    </url>
+    <url>
          <loc>https://bmeddeb.github.io/GitFleet/advanced/performance/</loc>
          <lastmod>2025-05-03</lastmod>
     </url>
@@ -61,11 +65,23 @@
          <lastmod>2025-05-03</lastmod>
     </url>
     <url>
+         <loc>https://bmeddeb.github.io/GitFleet/development/ci-setup/</loc>
+         <lastmod>2025-05-03</lastmod>
+    </url>
+    <url>
          <loc>https://bmeddeb.github.io/GitFleet/development/contributing/</loc>
          <lastmod>2025-05-03</lastmod>
     </url>
     <url>
+         <loc>https://bmeddeb.github.io/GitFleet/development/model-validation/</loc>
+         <lastmod>2025-05-03</lastmod>
+    </url>
+    <url>
          <loc>https://bmeddeb.github.io/GitFleet/development/python-rust-bridge/</loc>
+         <lastmod>2025-05-03</lastmod>
+    </url>
+    <url>
+         <loc>https://bmeddeb.github.io/GitFleet/development/repo-model-validation/</loc>
          <lastmod>2025-05-03</lastmod>
     </url>
     <url>
